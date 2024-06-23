@@ -4,9 +4,11 @@
 package game
 
 import (
+	"fmt"
 	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
@@ -113,4 +115,6 @@ func (f *Field) Draw(screen *ebiten.Image) {
 	op.GeoM.Translate(float64(f.playerX*GridSize+f.dx), float64(-((f.playerY+1)*GridSize + f.dy)))
 	op.GeoM.Translate(float64(offsetX), float64(offsetY))
 	screen.DrawImage(f.playerImage, op)
+
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("%dF / %dF", f.data.floorNumber(f.playerY), f.data.floorCount()))
 }

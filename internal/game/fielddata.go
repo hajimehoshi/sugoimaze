@@ -480,6 +480,14 @@ func (f *FieldData) canStandOnTile(x, y int, currentDepth int) bool {
 	return false
 }
 
+func (f *FieldData) floorNumber(y int) int {
+	return (y-1)/roomYGridCount + 1
+}
+
+func (f *FieldData) floorCount() int {
+	return f.height + 1
+}
+
 func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDepth int) {
 	for y := range f.tiles {
 		for x := range f.tiles[y] {
