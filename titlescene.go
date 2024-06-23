@@ -7,6 +7,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+
+	gamepkg "github.com/hajimehoshi/ebitenginegamejam2024/internal/game"
 )
 
 type TitleScene struct {
@@ -14,7 +16,7 @@ type TitleScene struct {
 
 func (t *TitleScene) Update(game GameContext) error {
 	if len(inpututil.AppendJustPressedKeys(nil)) > 0 {
-		game.GoToGame()
+		game.GoToGame(gamepkg.LevelNormal)
 	}
 	return nil
 }

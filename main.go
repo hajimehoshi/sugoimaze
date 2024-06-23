@@ -8,10 +8,12 @@ import (
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
+
+	"github.com/hajimehoshi/ebitenginegamejam2024/internal/game"
 )
 
 type GameContext interface {
-	GoToGame()
+	GoToGame(difficulty game.Difficulty)
 }
 
 type Scene interface {
@@ -44,8 +46,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 	return 640, 480
 }
 
-func (g *Game) GoToGame() {
-	g.scene = &GameScene{}
+func (g *Game) GoToGame(level game.Difficulty) {
+	g.scene = NewGameScene(level)
 }
 
 func main() {
