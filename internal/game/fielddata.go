@@ -199,30 +199,30 @@ func (f *FieldData) tryAddPath(rooms [][][]room, x, y, z int, isGoal func(x, y, 
 			x, y, z := x, y, z
 
 			var zChanged bool
-			switch d := rand.IntN(4 + f.depth); d {
-			case 0:
+			switch d := rand.IntN(12 + f.depth); d {
+			case 0, 1, 2:
 				if x <= 0 {
 					continue
 				}
 				x--
-			case 1:
+			case 3, 4, 5:
 				if x >= f.width-1 {
 					continue
 				}
 				x++
-			case 2:
+			case 6, 7, 8:
 				if y <= 0 {
 					continue
 				}
 				y--
 				// TODO: One way
-			case 3:
+			case 9, 10, 11:
 				if y >= f.height-1 {
 					continue
 				}
 				y++
 			default:
-				z = (z + (d - 4)) % f.depth
+				z = (z + (d - 12)) % f.depth
 				zChanged = true
 			}
 
