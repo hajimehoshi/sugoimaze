@@ -138,7 +138,9 @@ func (f *FieldData) generateWalls() bool {
 	for x != f.goalX || y != f.goalY || z != f.goalZ {
 		var nextX, nextY, nextZ int
 
-		for i := 0; i < 100; i++ {
+	retry:
+		for range 100 {
+			origZ := z
 			x, y, z := x, y, z
 
 			var zChanged bool
@@ -172,8 +174,11 @@ func (f *FieldData) generateWalls() bool {
 			// The next room is already visited.
 			if zChanged {
 				for z := range f.depth {
-					if f.rooms[z][y][x].pathCount != 0 {
+					if z == origZ {
 						continue
+					}
+					if f.rooms[z][y][x].pathCount != 0 {
+						continue retry
 					}
 				}
 			} else {
@@ -208,7 +213,7 @@ func (f *FieldData) generateWalls() bool {
 		count++
 		if z != nextZ {
 			origZ := z
-			for z := 0; z < f.depth; z++ {
+			for z := range f.depth {
 				f.rooms[z][nextY][nextX].pathCount = count + abs(origZ-z)
 			}
 		} else {
