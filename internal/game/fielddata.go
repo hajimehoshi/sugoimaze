@@ -58,7 +58,6 @@ type FieldData struct {
 	goalY  int
 	goalZ  int
 
-	rooms [][][]room
 	tiles [][]tile
 
 	tilesImage  *ebiten.Image
@@ -101,7 +100,11 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 		goalZ:  depth - 1,
 	}
 
-	for !f.generateWalls() {
+	var rooms [][][]room
+	for {
+		if rooms = f.generateWalls(); rooms != nil {
+			break
+		}
 	}
 	f.tiles = make([][]tile, f.height*roomYGridCount+2)
 	for y := range f.height*roomYGridCount + 2 {
@@ -113,7 +116,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 		panic(err)
 	}
 	f.tilesImage = ebiten.NewImageFromImage(img)
-	f.setTiles()
+	f.setTiles(rooms)
 
 	f.playerImage = f.tilesImage.SubImage(image.Rect(1*GridSize, 0*GridSize, 2*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.wallImage = f.tilesImage.SubImage(image.Rect(2*GridSize, 0*GridSize, 3*GridSize, 1*GridSize)).(*ebiten.Image)
@@ -122,23 +125,75 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	return f
 }
 
-func (f *FieldData) generateWalls() bool {
-	f.rooms = make([][][]room, f.depth)
+func (f *FieldData) generateWalls() [][][]room {
+	rooms := make([][][]room, f.depth)
 	for z := range f.depth {
-		f.rooms[z] = make([][]room, f.height)
+		rooms[z] = make([][]room, f.height)
 		for y := 0; y < f.height; y++ {
-			f.rooms[z][y] = make([]room, f.width)
+			rooms[z][y] = make([]room, f.width)
 		}
 	}
 
 	// Generate the correct path.
 	x, y, z := f.startX, f.startY, f.startZ
-	count := 1
-	f.rooms[z][y][x].pathCount = count
-	for x != f.goalX || y != f.goalY || z != f.goalZ {
+	rooms[z][y][x].pathCount = 1
+	newRooms := f.tryAddPath(rooms, x, y, z, func(x, y, z int, rooms [][][]room, count int) bool {
+		return x == f.goalX && y == f.goalY && z == f.goalZ
+	})
+	if newRooms == nil {
+		return nil
+	}
+	rooms = newRooms
+	rooms[f.goalZ][f.goalY][f.goalX].wallY = wallPassable
+
+	for !f.areEnoughRoomsVisited(rooms) {
+		var startX, startY, startZ int
+		for {
+			startX, startY, startZ = rand.IntN(f.width), rand.IntN(f.height), rand.IntN(f.depth)
+			if rooms[startZ][startY][startX].pathCount != 0 {
+				break
+			}
+		}
+		startCount := rooms[startZ][startY][startX].pathCount
+		newRooms := f.tryAddPath(rooms, startX, startY, startZ, func(x, y, z int, rooms [][][]room, count int) bool {
+			if x == startX && y == startY && z == startZ {
+				return false
+			}
+			if rooms[z][y][x].pathCount == 0 {
+				return false
+			}
+			// A branch must not be a shortcut.
+			if startCount <= rooms[z][y][x].pathCount {
+				return false
+			}
+			return (count-startCount)*2 > startCount-rooms[z][y][x].pathCount
+		})
+		if newRooms == nil {
+			continue
+		}
+		rooms = newRooms
+	}
+
+	return rooms
+}
+
+func (f *FieldData) tryAddPath(rooms [][][]room, x, y, z int, isGoal func(x, y, z int, rooms [][][]room, count int) bool) [][][]room {
+	// Clone rooms.
+	origRooms := rooms
+	rooms = append([][][]room{}, origRooms...)
+	for z := range f.depth {
+		rooms[z] = append([][]room{}, origRooms[z]...)
+		for y := range f.height {
+			rooms[z][y] = append([]room{}, origRooms[z][y]...)
+		}
+	}
+
+	count := rooms[z][y][x].pathCount
+
+	for !isGoal(x, y, z, rooms, count) {
+		var goalReached bool
 		var nextX, nextY, nextZ int
 
-	retry:
 		for range 100 {
 			origZ := z
 			x, y, z := x, y, z
@@ -172,41 +227,51 @@ func (f *FieldData) generateWalls() bool {
 			}
 
 			// The next room is already visited.
+			var visited bool
 			if zChanged {
 				for z := range f.depth {
 					if z == origZ {
 						continue
 					}
-					if f.rooms[z][y][x].pathCount != 0 {
-						continue retry
+					if rooms[z][y][x].pathCount != 0 {
+						visited = true
+						break
 					}
 				}
 			} else {
-				if f.rooms[z][y][x].pathCount != 0 {
-					continue
+				if rooms[z][y][x].pathCount != 0 {
+					visited = true
 				}
 			}
 
-			nextX, nextY, nextZ = x, y, z
-			break
+			if !visited {
+				nextX, nextY, nextZ = x, y, z
+				break
+			}
+
+			if isGoal(x, y, z, rooms, count+1) {
+				goalReached = true
+				nextX, nextY, nextZ = x, y, z
+				break
+			}
 		}
 
 		if nextX == x && nextY == y && nextZ == z {
-			return false
+			return nil
 		}
 
 		switch {
 		case x < nextX:
-			f.rooms[z][y][x].wallX = wallPassable
+			rooms[z][y][x].wallX = wallPassable
 		case x > nextX:
-			f.rooms[z][y][x-1].wallX = wallPassable
+			rooms[z][y][x-1].wallX = wallPassable
 		case y < nextY:
-			f.rooms[z][y][x].wallY = wallPassable
+			rooms[z][y][x].wallY = wallPassable
 		case y > nextY:
-			f.rooms[z][y-1][x].wallY = wallPassable
+			rooms[z][y-1][x].wallY = wallPassable
 		case z != nextZ:
 			for z := 0; z < f.depth-1; z++ {
-				f.rooms[z][y][x].wallZ = wallPassable
+				rooms[z][y][x].wallZ = wallPassable
 			}
 		}
 
@@ -214,19 +279,38 @@ func (f *FieldData) generateWalls() bool {
 		if z != nextZ {
 			origZ := z
 			for z := range f.depth {
-				f.rooms[z][nextY][nextX].pathCount = count + abs(origZ-z)
+				rooms[z][nextY][nextX].pathCount = count + abs(origZ-z)
 			}
 		} else {
-			f.rooms[nextZ][nextY][nextX].pathCount = count
+			rooms[nextZ][nextY][nextX].pathCount = count
 		}
+
+		if goalReached {
+			break
+		}
+
 		x, y, z = nextX, nextY, nextZ
 	}
 
-	f.rooms[f.goalZ][f.goalY][f.goalX].wallY = wallPassable
+	return rooms
+}
 
-	// TODO: Add branches
-
-	return true
+func (f *FieldData) areEnoughRoomsVisited(rooms [][][]room) bool {
+	var visited int
+	threshold := (f.width * f.height * f.depth) * 8 / 10
+	for z := range f.depth {
+		for y := range f.height {
+			for x := range f.width {
+				if rooms[z][y][x].pathCount > 0 {
+					visited++
+					if visited >= threshold {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 func abs(x int) int {
@@ -243,7 +327,7 @@ const (
 	roomYGridCount = 3
 )
 
-func (f *FieldData) setTiles() {
+func (f *FieldData) setTiles(rooms [][][]room) {
 	for y := range f.tiles {
 		for x := range f.tiles[y] {
 			f.tiles[y][x] = tile{}
@@ -261,12 +345,12 @@ func (f *FieldData) setTiles() {
 
 	for y := range f.height {
 		for x := range f.width {
-			f.setTilesForRoom(x, y)
+			f.setTilesForRoom(rooms, x, y)
 		}
 	}
 }
 
-func (f *FieldData) setTilesForRoom(roomX, roomY int) {
+func (f *FieldData) setTilesForRoom(rooms [][][]room, roomX, roomY int) {
 	const (
 		edgeOffsetX = 1
 		edgeOffsetY = 1
@@ -277,7 +361,7 @@ func (f *FieldData) setTilesForRoom(roomX, roomY int) {
 	allWallX := true
 	allWallY := true
 	for z := range f.depth {
-		room := f.rooms[z][roomY][roomX]
+		room := rooms[z][roomY][roomX]
 		if room.wallX != wallPassable {
 			allPassableX = false
 		}
@@ -299,7 +383,7 @@ func (f *FieldData) setTilesForRoom(roomX, roomY int) {
 		}
 	} else if !allPassableX {
 		for z := range f.depth {
-			room := f.rooms[z][roomY][roomX]
+			room := rooms[z][roomY][roomX]
 			if room.wallX == wallWall {
 				continue
 			}
@@ -326,7 +410,7 @@ func (f *FieldData) setTilesForRoom(roomX, roomY int) {
 			}
 		} else {
 			for z := range f.depth {
-				room := f.rooms[z][roomY][roomX]
+				room := rooms[z][roomY][roomX]
 				if room.wallY == wallWall {
 					continue
 				}
@@ -339,7 +423,7 @@ func (f *FieldData) setTilesForRoom(roomX, roomY int) {
 		}
 	}
 
-	if f.rooms[0][roomY][roomX].wallZ != wallWall {
+	if rooms[0][roomY][roomX].wallZ != wallWall {
 		x := roomX*roomXGridCount + 3 + edgeOffsetX
 		y := roomY*roomYGridCount + edgeOffsetY
 		f.tiles[y][x].sw = true
