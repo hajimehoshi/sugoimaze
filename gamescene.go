@@ -42,6 +42,8 @@ func (g *GameScene) Update(gameContext GameContext) error {
 		return nil
 	}
 
+	g.field.Update()
+
 	return nil
 }
 

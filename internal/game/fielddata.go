@@ -341,6 +341,33 @@ func (f *FieldData) setTilesForRoom(roomX, roomY int) {
 	}
 }
 
+func (f *FieldData) hasSwitch(x, y int) bool {
+	return f.tiles[y][x].sw
+}
+
+func (f *FieldData) passable(x, y int, currentDepth int) bool {
+	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
+		return false
+	}
+	t := f.tiles[y][x]
+	if t.wall {
+		if t.color == 0 || t.color-1 != currentDepth {
+			return false
+		}
+	}
+
+	if t.ladder {
+		if t.color == 0 || t.color-1 == currentDepth {
+			return true
+		}
+	}
+
+	if !f.tiles[y-1][x].wall {
+		return false
+	}
+	return true
+}
+
 func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDepth int) {
 	for y := range f.tiles {
 		for x := range f.tiles[y] {
