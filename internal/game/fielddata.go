@@ -65,8 +65,6 @@ type FieldData struct {
 	playerImage *ebiten.Image
 	wallImage   *ebiten.Image
 	ladderImage *ebiten.Image
-
-	currentDepth int
 }
 
 func NewFieldData(difficulty Difficulty) *FieldData {
@@ -343,7 +341,7 @@ func (f *FieldData) setTilesForRoom(roomX, roomY int) {
 	}
 }
 
-func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int) {
+func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDepth int) {
 	for y := range f.tiles {
 		for x := range f.tiles[y] {
 			op := &ebiten.DrawImageOptions{}
@@ -356,7 +354,7 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int) {
 				if t.color != 0 && !t.ladder {
 					d := t.color - 1
 					var imgX int
-					if f.currentDepth == d {
+					if currentDepth == d {
 						imgX = 0
 					} else {
 						imgX = 1
@@ -371,7 +369,7 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int) {
 				if t.color != 0 {
 					d := t.color - 1
 					var imgX int
-					if f.currentDepth == d {
+					if currentDepth == d {
 						imgX = 4
 					} else {
 						imgX = 3
@@ -382,7 +380,7 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int) {
 				screen.DrawImage(img, op)
 			}
 			if f.tiles[y][x].sw {
-				imgY := 1 + f.currentDepth
+				imgY := 1 + currentDepth
 				switchImage := f.tilesImage.SubImage(image.Rect(2*GridSize, imgY*GridSize, 3*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
 				screen.DrawImage(switchImage, op)
 			}

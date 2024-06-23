@@ -16,16 +16,11 @@ type GameScene struct {
 	difficulty game.Difficulty
 	field      *game.Field
 	fieldCh    chan *game.Field
-
-	cameraOffsetX int
-	cameraOffsetY int
 }
 
 func NewGameScene(difficulty game.Difficulty) *GameScene {
 	return &GameScene{
-		difficulty:    difficulty,
-		cameraOffsetX: 0,
-		cameraOffsetY: 240,
+		difficulty: difficulty,
 	}
 }
 
@@ -47,19 +42,6 @@ func (g *GameScene) Update(gameContext GameContext) error {
 		return nil
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		g.cameraOffsetX -= 4
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		g.cameraOffsetX += 4
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyUp) {
-		g.cameraOffsetY -= 4
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyDown) {
-		g.cameraOffsetY += 4
-	}
-
 	return nil
 }
 
@@ -70,5 +52,5 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 		ebitenutil.DebugPrint(screen, "Generating a field...")
 		return
 	}
-	g.field.Draw(screen, g.cameraOffsetX, g.cameraOffsetY)
+	g.field.Draw(screen)
 }
