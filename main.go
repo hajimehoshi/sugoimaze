@@ -43,7 +43,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 640, 480
+	return 320, 240
 }
 
 func (g *Game) GoToGame(level game.Difficulty) {

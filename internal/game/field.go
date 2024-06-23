@@ -4,13 +4,17 @@
 package game
 
 import (
-	"image/color"
+	"bytes"
+	_ "embed"
+	"image"
+	"image/png"
 	"math/rand/v2"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/hajimehoshi/oklab"
 )
+
+//go:embed tiles.png
+var tilesPng []byte
 
 type Difficulty int
 
@@ -48,6 +52,13 @@ type Field struct {
 	goalZ  int
 
 	rooms [][][]room
+
+	tilesImage  *ebiten.Image
+	playerImage *ebiten.Image
+	wallImage   *ebiten.Image
+	ladderImage *ebiten.Image
+
+	currentDepth int
 }
 
 func NewField(difficulty Difficulty) *Field {
@@ -63,11 +74,11 @@ func NewField(difficulty Difficulty) *Field {
 	case LevelNormal:
 		width = 11
 		height = 10
-		depth = 3
+		depth = 2 // 3 or more is impossible to represent in 2D.
 	case LevelHard:
 		width = 13
 		height = 15
-		depth = 4
+		depth = 2
 	default:
 		panic("not reached")
 	}
@@ -86,6 +97,16 @@ func NewField(difficulty Difficulty) *Field {
 
 	for !f.generateWalls() {
 	}
+
+	img, err := png.Decode(bytes.NewReader(tilesPng))
+	if err != nil {
+		panic(err)
+	}
+	f.tilesImage = ebiten.NewImageFromImage(img)
+
+	f.playerImage = f.tilesImage.SubImage(image.Rect(1*GridSize, 0*GridSize, 2*GridSize, 1*GridSize)).(*ebiten.Image)
+	f.wallImage = f.tilesImage.SubImage(image.Rect(2*GridSize, 0*GridSize, 3*GridSize, 1*GridSize)).(*ebiten.Image)
+	f.ladderImage = f.tilesImage.SubImage(image.Rect(3*GridSize, 0*GridSize, 4*GridSize, 1*GridSize)).(*ebiten.Image)
 
 	return f
 }
@@ -110,7 +131,7 @@ func (f *Field) generateWalls() bool {
 			x, y, z := x, y, z
 
 			var zChanged bool
-			switch d := rand.IntN(4 + (f.depth - 1)); d {
+			switch d := rand.IntN(4 + f.depth); d {
 			case 0:
 				if x <= 0 {
 					continue
@@ -185,6 +206,8 @@ func (f *Field) generateWalls() bool {
 		x, y, z = nextX, nextY, nextZ
 	}
 
+	f.rooms[f.goalZ][f.goalY][f.goalX].wallY = wallPassable
+
 	// TODO: Add branches
 
 	return true
@@ -197,61 +220,150 @@ func abs(x int) int {
 	return x
 }
 
+const GridSize = 16
+
+const (
+	roomXGridCount = 10
+	roomYGridCount = 4
+)
+
 func (f *Field) Draw(screen *ebiten.Image, offsetX, offsetY int) {
+	// Draw the outside walls.
+	for y := 0; y < f.height; y++ {
+		for j := 0; j < roomYGridCount; j++ {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(0, float64(-(y*roomYGridCount+j)*GridSize))
+			op.GeoM.Translate(float64(offsetX), float64(offsetY))
+			op.GeoM.Translate(0, -GridSize)
+			op.GeoM.Translate(0, -GridSize)
+			screen.DrawImage(f.wallImage, op)
+		}
+	}
+	for x := 0; x < f.width; x++ {
+		for i := 0; i < roomXGridCount; i++ {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(float64((x*roomXGridCount+i)*GridSize), 0)
+			op.GeoM.Translate(float64(offsetX), float64(offsetY))
+			op.GeoM.Translate(0, -GridSize)
+			screen.DrawImage(f.wallImage, op)
+		}
+	}
+
+	// Draw the rooms.
 	for y := 0; y < f.height; y++ {
 		for x := 0; x < f.width; x++ {
-			f.drawRoom(screen, offsetX, offsetY, x, y)
+			f.drawRoom(screen, offsetX+GridSize, offsetY-GridSize, x, y)
 		}
 	}
 }
 
 func (f *Field) drawRoom(screen *ebiten.Image, offsetX, offsetY int, roomX, roomY int) {
-	const (
-		roomWidth  = 32
-		roomHeight = 32
-	)
-
-	x := roomX*roomWidth + offsetX
-	y := -roomY*roomHeight + offsetY
-
-	// https://ja.wikipedia.org/wiki/PCCS
-	var (
-		red    = oklab.OklchModel.Convert(color.RGBA{R: 0xee, G: 0x00, B: 0x26, A: 0xff}).(oklab.Oklch)
-		blue   = oklab.OklchModel.Convert(color.RGBA{R: 0x0f, G: 0x21, B: 0x8b, A: 0xff}).(oklab.Oklch)
-		green  = oklab.OklchModel.Convert(color.RGBA{R: 0x33, G: 0xa2, B: 0x3d, A: 0xff}).(oklab.Oklch)
-		yellow = oklab.OklchModel.Convert(color.RGBA{R: 0xff, G: 0xe6, B: 0x00, A: 0xff}).(oklab.Oklch)
-	)
-	wallColors := []color.Color{red, blue, green, yellow}
-
+	allPassableX := true
+	allPassableY := true
 	allWallX := true
 	allWallY := true
 	for z := 0; z < f.depth; z++ {
 		room := f.rooms[z][roomY][roomX]
+		if room.wallX != wallPassable {
+			allPassableX = false
+		}
 		if room.wallX != wallWall {
 			allWallX = false
+		}
+		if room.wallY != wallPassable {
+			allPassableY = false
 		}
 		if room.wallY != wallWall {
 			allWallY = false
 		}
 	}
 	if allWallX {
-		vector.StrokeLine(screen, float32(x+roomWidth), float32(y), float32(x+roomWidth), float32(y-roomHeight), 1, color.White, false)
-	}
-	if allWallY {
-		vector.StrokeLine(screen, float32(x), float32(y-roomHeight), float32(x+roomWidth), float32(y-roomHeight), 1, color.White, false)
+		for j := 1; j < roomYGridCount; j++ {
+			op := &ebiten.DrawImageOptions{}
+			x := roomX*roomXGridCount + 9
+			y := -(roomY+1)*roomYGridCount + j
+			op.GeoM.Translate(float64(x*GridSize), float64(y*GridSize))
+			op.GeoM.Translate(float64(offsetX), float64(offsetY))
+			screen.DrawImage(f.wallImage, op)
+		}
+	} else if !allPassableX {
+		for z := 0; z < f.depth; z++ {
+			room := f.rooms[z][roomY][roomX]
+			if room.wallX == wallWall {
+				continue
+			}
+			var colorWallImage *ebiten.Image
+			imgY := 1 + z
+			if f.currentDepth == z {
+				// Passable
+				colorWallImage = f.tilesImage.SubImage(image.Rect(0*GridSize, imgY*GridSize, 1*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
+			} else {
+				// Wall
+				colorWallImage = f.tilesImage.SubImage(image.Rect(1*GridSize, imgY*GridSize, 2*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
+			}
+			for j := 1; j < roomYGridCount; j++ {
+				op := &ebiten.DrawImageOptions{}
+				x := roomX*roomXGridCount + 5 + z
+				y := -(roomY+1)*roomYGridCount + j
+				op.GeoM.Translate(float64(x*GridSize), float64(y*GridSize))
+				op.GeoM.Translate(float64(offsetX), float64(offsetY))
+				screen.DrawImage(colorWallImage, op)
+			}
+		}
 	}
 
-	for z := 0; z < f.depth; z++ {
-		room := f.rooms[z][roomY][roomX]
-		if !allWallX && room.wallX == wallWall {
-			vector.StrokeLine(screen, float32(x+roomWidth+z), float32(y), float32(x+roomWidth+z), float32(y-roomHeight), 1, wallColors[z], false)
-		}
-		if !allWallY && room.wallY == wallWall {
-			vector.StrokeLine(screen, float32(x), float32(y-roomHeight-z), float32(x+roomWidth), float32(y-roomHeight-z), 1, wallColors[z], false)
+	for i := 0; i < roomXGridCount; i++ {
+		op := &ebiten.DrawImageOptions{}
+		x := roomX*roomXGridCount + i
+		y := -(roomY + 1) * roomYGridCount
+		op.GeoM.Translate(float64(x*GridSize), float64(y*GridSize))
+		op.GeoM.Translate(float64(offsetX), float64(offsetY))
+		screen.DrawImage(f.wallImage, op)
+	}
+	if !allWallY {
+		x := roomX*roomXGridCount + 1 + (roomY % 2)
+		if allPassableY {
+			for j := 0; j < roomYGridCount; j++ {
+				op := &ebiten.DrawImageOptions{}
+				y := -(roomY+1)*roomYGridCount + j
+				op.GeoM.Translate(float64(x*GridSize), float64(y*GridSize))
+				op.GeoM.Translate(float64(offsetX), float64(offsetY))
+				screen.DrawImage(f.ladderImage, op)
+			}
+		} else {
+			for z := 0; z < f.depth; z++ {
+				room := f.rooms[z][roomY][roomX]
+				if room.wallY == wallWall {
+					continue
+				}
+				var colorLadderImage *ebiten.Image
+				imgY := 1 + z
+				if f.currentDepth == z {
+					// Passable
+					colorLadderImage = f.tilesImage.SubImage(image.Rect(4*GridSize, imgY*GridSize, 5*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
+				} else {
+					// Non passable
+					colorLadderImage = f.tilesImage.SubImage(image.Rect(3*GridSize, imgY*GridSize, 4*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
+				}
+				for j := 0; j < roomYGridCount; j++ {
+					op := &ebiten.DrawImageOptions{}
+					y := -(roomY+1)*roomYGridCount + j
+					op.GeoM.Translate(float64(x*GridSize), float64(y*GridSize))
+					op.GeoM.Translate(float64(offsetX), float64(offsetY))
+					screen.DrawImage(colorLadderImage, op)
+				}
+			}
 		}
 	}
 
 	if f.rooms[0][roomY][roomX].wallZ != wallWall {
-		vector.DrawFilledRect(screen, float32(x), float32(y-roomHeight), float32(roomWidth/2), float32(roomHeight/2), color.White, false)
+		imgY := (1 + f.currentDepth)
+		switchImage := f.tilesImage.SubImage(image.Rect(2*GridSize, imgY*GridSize, 3*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
+		op := &ebiten.DrawImageOptions{}
+		x := roomX*roomXGridCount + 4
+		y := -(roomY+1)*roomYGridCount + 3
+		op.GeoM.Translate(float64(x*GridSize), float64(y*GridSize))
+		op.GeoM.Translate(float64(offsetX), float64(offsetY))
+		screen.DrawImage(switchImage, op)
 	}
 }

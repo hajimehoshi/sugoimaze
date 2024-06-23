@@ -4,6 +4,8 @@
 package main
 
 import (
+	"image/color"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 
@@ -14,11 +16,16 @@ type GameScene struct {
 	difficulty game.Difficulty
 	field      *game.Field
 	fieldCh    chan *game.Field
+
+	cameraOffsetX int
+	cameraOffsetY int
 }
 
 func NewGameScene(difficulty game.Difficulty) *GameScene {
 	return &GameScene{
-		difficulty: difficulty,
+		difficulty:    difficulty,
+		cameraOffsetX: 0,
+		cameraOffsetY: 240,
 	}
 }
 
@@ -36,13 +43,32 @@ func (g *GameScene) Update(gameContext GameContext) error {
 		g.field = f
 	default:
 	}
+	if g.field == nil {
+		return nil
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+		g.cameraOffsetX -= 4
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyRight) {
+		g.cameraOffsetX += 4
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyUp) {
+		g.cameraOffsetY -= 4
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyDown) {
+		g.cameraOffsetY += 4
+	}
+
 	return nil
 }
 
 func (g *GameScene) Draw(screen *ebiten.Image) {
+	screen.Fill(color.RGBA{0, 0, 0, 255})
+
 	if g.field == nil {
 		ebitenutil.DebugPrint(screen, "Generating a field...")
 		return
 	}
-	g.field.Draw(screen, 0, 480)
+	g.field.Draw(screen, g.cameraOffsetX, g.cameraOffsetY)
 }
