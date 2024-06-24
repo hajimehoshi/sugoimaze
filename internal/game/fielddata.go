@@ -90,7 +90,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 		depth = 2 // 3 or more is impossible to represent in 2D.
 	case LevelHard:
 		width = 13
-		height = 15
+		height = 20
 		depth = 2
 	default:
 		panic("not reached")
@@ -207,6 +207,7 @@ func (f *FieldData) tryAddPath(rooms [][][]room, x, y, z int, isGoal func(x, y, 
 		var nextX, nextY, nextZ int
 		var oneWay bool
 
+	retry:
 		for range 100 {
 			origX, origY, origZ := x, y, z
 			nextX, nextY, nextZ = x, y, z
@@ -257,16 +258,16 @@ func (f *FieldData) tryAddPath(rooms [][][]room, x, y, z int, isGoal func(x, y, 
 				// Refuse the new path if the one way direction conflicts.
 				for z := range f.depth {
 					if origX < nextX && rooms[z][origY][origX].wallX == wallOneWayBackward {
-						continue
+						continue retry
 					}
 					if origX > nextX && rooms[z][nextY][nextX].wallX == wallOneWayForward {
-						continue
+						continue retry
 					}
 					if origY < nextY && rooms[z][origY][origX].wallY == wallOneWayBackward {
-						continue
+						continue retry
 					}
 					if origY > nextY && rooms[z][nextY][nextX].wallY == wallOneWayForward {
-						continue
+						continue retry
 					}
 				}
 				if rooms[nextZ][nextY][nextX].pathCount != 0 {
