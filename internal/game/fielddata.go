@@ -173,7 +173,7 @@ func (f *FieldData) generateWalls() [][][]room {
 				return false
 			}
 			// A branch must not be a shortcut.
-			if startCount <= rooms[z][y][x].pathCount {
+			if startCount <= rooms[z][y][x].pathCount*5/4 {
 				return false
 			}
 			return true
