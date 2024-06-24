@@ -81,7 +81,7 @@ func (f *Field) Update() {
 	}
 
 	prevX, prevY := f.playerX, f.playerY
-	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		if f.data.hasSwitch(prevX, prevY) {
 			f.currentDepth++
 			f.currentDepth %= f.data.depth

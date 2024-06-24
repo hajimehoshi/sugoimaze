@@ -45,7 +45,7 @@ func (g *GameScene) Update(gameContext GameContext) error {
 
 	g.field.Update()
 	if g.field.IsGoalReached() {
-		if len(inpututil.AppendJustPressedKeys(nil)) > 0 {
+		if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 			gameContext.GoToTitle()
 		}
 	}
