@@ -146,7 +146,7 @@ func (f *FieldData) generateWalls() [][][]room {
 	// Generate the correct path.
 	x, y, z := f.startX, f.startY, f.startZ
 	rooms[z][y][x].pathCount = 1
-	newRooms := f.tryAddPath(rooms, x, y, z, func(x, y, z int, rooms [][][]room, count int) bool {
+	newRooms := f.tryAddPathWithOneWay(rooms, x, y, z, func(x, y, z int, rooms [][][]room, count int) bool {
 		return x == f.goalX && y == f.goalY && z == f.goalZ
 	})
 	if newRooms == nil {
@@ -165,7 +165,7 @@ func (f *FieldData) generateWalls() [][][]room {
 			}
 		}
 		startCount := rooms[startZ][startY][startX].pathCount
-		newRooms := f.tryAddPath(rooms, startX, startY, startZ, func(x, y, z int, rooms [][][]room, count int) bool {
+		newRooms := f.tryAddPathWithOneWay(rooms, startX, startY, startZ, func(x, y, z int, rooms [][][]room, count int) bool {
 			if x == startX && y == startY && z == startZ {
 				return false
 			}
@@ -173,6 +173,8 @@ func (f *FieldData) generateWalls() [][][]room {
 				return false
 			}
 			// A branch must not be a shortcut.
+			// Also, a good branch should go back to a position close to the start position.
+			// Multiply a constant to make better branches.
 			if startCount <= rooms[z][y][x].pathCount*5/4 {
 				return false
 			}
@@ -187,7 +189,7 @@ func (f *FieldData) generateWalls() [][][]room {
 	return rooms
 }
 
-func (f *FieldData) tryAddPath(rooms [][][]room, x, y, z int, isGoal func(x, y, z int, rooms [][][]room, count int) bool) [][][]room {
+func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal func(x, y, z int, rooms [][][]room, count int) bool) [][][]room {
 	// Clone rooms.
 	origRooms := rooms
 	rooms = append([][][]room{}, origRooms...)
