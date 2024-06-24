@@ -19,6 +19,7 @@ type Field struct {
 	dx           int
 	dy           int
 	currentDepth int
+	goalReached  bool
 
 	playerImage *ebiten.Image
 }
@@ -35,7 +36,15 @@ func NewField(difficulty Difficulty) *Field {
 	return f
 }
 
+func (f *Field) IsGoalReached() bool {
+	return f.goalReached
+}
+
 func (f *Field) Update() {
+	if f.goalReached {
+		return
+	}
+
 	const v = 3
 
 	if f.dx != 0 || f.dy != 0 {
@@ -64,6 +73,9 @@ func (f *Field) Update() {
 		if f.dy <= -GridSize {
 			f.playerY--
 			f.dy = 0
+		}
+		if f.data.isGoal(f.playerX, f.playerY) {
+			f.goalReached = true
 		}
 		return
 	}

@@ -14,6 +14,7 @@ import (
 
 type GameContext interface {
 	GoToGame(difficulty game.Difficulty)
+	GoToTitle()
 }
 
 type Scene interface {
@@ -48,6 +49,10 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 
 func (g *Game) GoToGame(level game.Difficulty) {
 	g.scene = NewGameScene(level)
+}
+
+func (g *Game) GoToTitle() {
+	g.scene = &TitleScene{}
 }
 
 func main() {

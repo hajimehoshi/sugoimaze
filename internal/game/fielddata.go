@@ -44,6 +44,7 @@ type tile struct {
 	wall   bool
 	ladder bool
 	sw     bool
+	goal   bool
 	color  int // 0 is no color. 1 and more is depth+1.
 }
 
@@ -64,6 +65,7 @@ type FieldData struct {
 	playerImage *ebiten.Image
 	wallImage   *ebiten.Image
 	ladderImage *ebiten.Image
+	goalImage   *ebiten.Image
 }
 
 func NewFieldData(difficulty Difficulty) *FieldData {
@@ -117,6 +119,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	f.playerImage = f.tilesImage.SubImage(image.Rect(1*GridSize, 0*GridSize, 2*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.wallImage = f.tilesImage.SubImage(image.Rect(2*GridSize, 0*GridSize, 3*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.ladderImage = f.tilesImage.SubImage(image.Rect(3*GridSize, 0*GridSize, 4*GridSize, 1*GridSize)).(*ebiten.Image)
+	f.goalImage = f.tilesImage.SubImage(image.Rect(4*GridSize, 0*GridSize, 5*GridSize, 1*GridSize)).(*ebiten.Image)
 
 	return f
 }
@@ -325,9 +328,12 @@ const (
 )
 
 func (f *FieldData) setTiles(rooms [][][]room) {
-	f.tiles = make([][]tile, f.height*roomYGridCount+2)
-	for y := range f.height*roomYGridCount + 2 {
-		f.tiles[y] = make([]tile, f.width*roomXGridCount+1)
+	width := f.width*roomXGridCount + 1
+	height := f.height*roomYGridCount + 2
+
+	f.tiles = make([][]tile, height)
+	for y := range f.tiles {
+		f.tiles[y] = make([]tile, width)
 	}
 
 	for y := range f.tiles {
@@ -344,8 +350,10 @@ func (f *FieldData) setTiles(rooms [][][]room) {
 	for y := range f.tiles {
 		f.tiles[y][0].wall = true
 	}
-	lastColumn := f.tiles[len(f.tiles)-1]
-	lastColumn[len(lastColumn)-1].wall = true
+	f.tiles[height-1][width-1].wall = true
+
+	// Set the goal.
+	f.tiles[height-1][width-6].goal = true
 
 	for y := range f.height {
 		for x := range f.width {
@@ -484,6 +492,10 @@ func (f *FieldData) canStandOnTile(x, y int, currentDepth int) bool {
 	return false
 }
 
+func (f *FieldData) isGoal(x, y int) bool {
+	return f.tiles[y][x].goal
+}
+
 func (f *FieldData) floorNumber(y int) int {
 	return (y-1)/roomYGridCount + 1
 }
@@ -493,6 +505,7 @@ func (f *FieldData) floorCount() int {
 }
 
 func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDepth int) {
+	// TODO: Skip rendering if the tile is out of the screen.
 	for y := range f.tiles {
 		for x := range f.tiles[y] {
 			op := &ebiten.DrawImageOptions{}
@@ -530,10 +543,13 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDept
 				}
 				screen.DrawImage(img, op)
 			}
-			if f.tiles[y][x].sw {
+			if t.sw {
 				imgY := 1 + currentDepth
 				switchImage := f.tilesImage.SubImage(image.Rect(2*GridSize, imgY*GridSize, 3*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
 				screen.DrawImage(switchImage, op)
+			}
+			if t.goal {
+				screen.DrawImage(f.goalImage, op)
 			}
 		}
 	}

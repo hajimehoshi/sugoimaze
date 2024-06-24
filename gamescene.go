@@ -8,6 +8,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	game "github.com/hajimehoshi/ebitenginegamejam2024/internal/game"
 )
@@ -43,6 +44,11 @@ func (g *GameScene) Update(gameContext GameContext) error {
 	}
 
 	g.field.Update()
+	if g.field.IsGoalReached() {
+		if len(inpututil.AppendJustPressedKeys(nil)) > 0 {
+			gameContext.GoToTitle()
+		}
+	}
 
 	return nil
 }
@@ -55,4 +61,8 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 		return
 	}
 	g.field.Draw(screen)
+
+	if g.field.IsGoalReached() {
+		ebitenutil.DebugPrint(screen, "\n\nGOAL!")
+	}
 }
