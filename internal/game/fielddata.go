@@ -106,17 +106,13 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 			break
 		}
 	}
-	f.tiles = make([][]tile, f.height*roomYGridCount+2)
-	for y := range f.height*roomYGridCount + 2 {
-		f.tiles[y] = make([]tile, f.width*roomXGridCount+1)
-	}
+	f.setTiles(rooms)
 
 	img, err := png.Decode(bytes.NewReader(tilesPng))
 	if err != nil {
 		panic(err)
 	}
 	f.tilesImage = ebiten.NewImageFromImage(img)
-	f.setTiles(rooms)
 
 	f.playerImage = f.tilesImage.SubImage(image.Rect(1*GridSize, 0*GridSize, 2*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.wallImage = f.tilesImage.SubImage(image.Rect(2*GridSize, 0*GridSize, 3*GridSize, 1*GridSize)).(*ebiten.Image)
@@ -146,6 +142,7 @@ func (f *FieldData) generateWalls() [][][]room {
 	rooms = newRooms
 	rooms[f.goalZ][f.goalY][f.goalX].wallY = wallPassable
 
+	// Add branches.
 	for !f.areEnoughRoomsVisited(rooms) {
 		var startX, startY, startZ int
 		for {
@@ -166,7 +163,7 @@ func (f *FieldData) generateWalls() [][][]room {
 			if startCount <= rooms[z][y][x].pathCount {
 				return false
 			}
-			return (count-startCount)*2 > startCount-rooms[z][y][x].pathCount
+			return count-startCount >= startCount-rooms[z][y][x].pathCount
 		})
 		if newRooms == nil {
 			continue
@@ -328,6 +325,11 @@ const (
 )
 
 func (f *FieldData) setTiles(rooms [][][]room) {
+	f.tiles = make([][]tile, f.height*roomYGridCount+2)
+	for y := range f.height*roomYGridCount + 2 {
+		f.tiles[y] = make([]tile, f.width*roomXGridCount+1)
+	}
+
 	for y := range f.tiles {
 		for x := range f.tiles[y] {
 			f.tiles[y][x] = tile{}
@@ -342,6 +344,8 @@ func (f *FieldData) setTiles(rooms [][][]room) {
 	for y := range f.tiles {
 		f.tiles[y][0].wall = true
 	}
+	lastColumn := f.tiles[len(f.tiles)-1]
+	lastColumn[len(lastColumn)-1].wall = true
 
 	for y := range f.height {
 		for x := range f.width {
