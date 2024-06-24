@@ -44,7 +44,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 320, 240
+	return outsideWidth / 2, outsideHeight / 2
 }
 
 func (g *Game) GoToGame(level game.Difficulty) {
@@ -57,6 +57,8 @@ func (g *Game) GoToTitle() {
 
 func main() {
 	ebiten.SetWindowTitle("Ebitengine Game Jam 2024")
+	ebiten.SetWindowSize(640, 640)
+	ebiten.SetWindowResizable(true)
 	if err := ebiten.RunGame(NewGame()); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
