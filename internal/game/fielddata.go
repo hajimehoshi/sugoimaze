@@ -41,11 +41,13 @@ type room struct {
 }
 
 type tile struct {
-	wall   bool
-	ladder bool
-	sw     bool
-	goal   bool
-	color  int // 0 is no color. 1 and more is depth+1.
+	wall     bool
+	ladder   bool
+	upward   bool
+	downward bool
+	sw       bool
+	goal     bool
+	color    int // 0 is no color. 1 and more is depth+1.
 }
 
 type FieldData struct {
@@ -61,11 +63,15 @@ type FieldData struct {
 
 	tiles [][]tile
 
-	tilesImage  *ebiten.Image
-	playerImage *ebiten.Image
-	wallImage   *ebiten.Image
-	ladderImage *ebiten.Image
-	goalImage   *ebiten.Image
+	tilesImage            *ebiten.Image
+	playerImage           *ebiten.Image
+	wallImage             *ebiten.Image
+	ladderImage           *ebiten.Image
+	goalImage             *ebiten.Image
+	upwardImage           *ebiten.Image
+	downwardImage         *ebiten.Image
+	upwardDisabledImage   *ebiten.Image
+	downwardDisabledImage *ebiten.Image
 }
 
 func NewFieldData(difficulty Difficulty) *FieldData {
@@ -120,6 +126,10 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	f.wallImage = f.tilesImage.SubImage(image.Rect(2*GridSize, 0*GridSize, 3*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.ladderImage = f.tilesImage.SubImage(image.Rect(3*GridSize, 0*GridSize, 4*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.goalImage = f.tilesImage.SubImage(image.Rect(4*GridSize, 0*GridSize, 5*GridSize, 1*GridSize)).(*ebiten.Image)
+	f.upwardImage = f.tilesImage.SubImage(image.Rect(5*GridSize, 0*GridSize, 6*GridSize, 1*GridSize)).(*ebiten.Image)
+	f.downwardImage = f.tilesImage.SubImage(image.Rect(6*GridSize, 0*GridSize, 7*GridSize, 1*GridSize)).(*ebiten.Image)
+	f.upwardDisabledImage = f.tilesImage.SubImage(image.Rect(7*GridSize, 0*GridSize, 8*GridSize, 1*GridSize)).(*ebiten.Image)
+	f.downwardDisabledImage = f.tilesImage.SubImage(image.Rect(8*GridSize, 0*GridSize, 9*GridSize, 1*GridSize)).(*ebiten.Image)
 
 	return f
 }
@@ -166,7 +176,7 @@ func (f *FieldData) generateWalls() [][][]room {
 			if startCount <= rooms[z][y][x].pathCount {
 				return false
 			}
-			return count-startCount >= startCount-rooms[z][y][x].pathCount
+			return true
 		})
 		if newRooms == nil {
 			continue
@@ -188,41 +198,46 @@ func (f *FieldData) tryAddPath(rooms [][][]room, x, y, z int, isGoal func(x, y, 
 		}
 	}
 
+	var oneWayExists bool
+
 	count := rooms[z][y][x].pathCount
 
 	for !isGoal(x, y, z, rooms, count) {
 		var goalReached bool
 		var nextX, nextY, nextZ int
+		var oneWay bool
 
 		for range 100 {
-			origZ := z
-			x, y, z := x, y, z
+			origX, origY, origZ := x, y, z
+			nextX, nextY, nextZ = x, y, z
+			oneWay = false
 
 			var zChanged bool
 			switch d := rand.IntN(12 + f.depth); d {
 			case 0, 1, 2:
-				if x <= 0 {
+				if nextX <= 0 {
 					continue
 				}
-				x--
+				nextX--
 			case 3, 4, 5:
-				if x >= f.width-1 {
+				if nextX >= f.width-1 {
 					continue
 				}
-				x++
+				nextX++
 			case 6, 7, 8:
-				if y <= 0 {
+				if nextY <= 0 {
 					continue
 				}
-				y--
-				// TODO: One way
+				nextY--
+				oneWay = d == 6
 			case 9, 10, 11:
-				if y >= f.height-1 {
+				if nextY >= f.height-1 {
 					continue
 				}
-				y++
+				nextY++
+				oneWay = d == 9
 			default:
-				z = (z + (d - 12)) % f.depth
+				nextZ = (nextZ + (d - 12)) % f.depth
 				zChanged = true
 			}
 
@@ -233,42 +248,68 @@ func (f *FieldData) tryAddPath(rooms [][][]room, x, y, z int, isGoal func(x, y, 
 					if z == origZ {
 						continue
 					}
-					if rooms[z][y][x].pathCount != 0 {
+					if rooms[nextZ][nextY][nextX].pathCount != 0 {
 						visited = true
 						break
 					}
 				}
 			} else {
-				if rooms[z][y][x].pathCount != 0 {
+				// Refuse the new path if the one way direction conflicts.
+				for z := range f.depth {
+					if origX < nextX && rooms[z][origY][origX].wallX == wallOneWayBackward {
+						continue
+					}
+					if origX > nextX && rooms[z][nextY][nextX].wallX == wallOneWayForward {
+						continue
+					}
+					if origY < nextY && rooms[z][origY][origX].wallY == wallOneWayBackward {
+						continue
+					}
+					if origY > nextY && rooms[z][nextY][nextX].wallY == wallOneWayForward {
+						continue
+					}
+				}
+				if rooms[nextZ][nextY][nextX].pathCount != 0 {
 					visited = true
 				}
 			}
 
 			if !visited {
-				nextX, nextY, nextZ = x, y, z
 				break
 			}
 
-			if isGoal(x, y, z, rooms, count+1) {
+			if isGoal(nextX, nextY, nextZ, rooms, count+1) {
 				goalReached = true
-				nextX, nextY, nextZ = x, y, z
 				break
 			}
 		}
 
+		// Give up when no new path is created.
 		if nextX == x && nextY == y && nextZ == z {
 			return nil
+		}
+
+		if oneWay {
+			oneWayExists = true
 		}
 
 		switch {
 		case x < nextX:
 			rooms[z][y][x].wallX = wallPassable
 		case x > nextX:
-			rooms[z][y][x-1].wallX = wallPassable
+			rooms[z][y][nextX].wallX = wallPassable
 		case y < nextY:
-			rooms[z][y][x].wallY = wallPassable
+			if oneWay {
+				rooms[z][y][x].wallY = wallOneWayForward
+			} else {
+				rooms[z][y][x].wallY = wallPassable
+			}
 		case y > nextY:
-			rooms[z][y-1][x].wallY = wallPassable
+			if oneWay {
+				rooms[z][nextY][x].wallY = wallOneWayBackward
+			} else {
+				rooms[z][nextY][x].wallY = wallPassable
+			}
 		case z != nextZ:
 			for z := 0; z < f.depth-1; z++ {
 				rooms[z][y][x].wallZ = wallPassable
@@ -292,6 +333,9 @@ func (f *FieldData) tryAddPath(rooms [][][]room, x, y, z int, isGoal func(x, y, 
 		x, y, z = nextX, nextY, nextZ
 	}
 
+	if !oneWayExists {
+		return nil
+	}
 	return rooms
 }
 
@@ -374,13 +418,13 @@ func (f *FieldData) setTilesForRoom(rooms [][][]room, roomX, roomY int) {
 	allWallY := true
 	for z := range f.depth {
 		room := rooms[z][roomY][roomX]
-		if room.wallX != wallPassable {
+		if room.wallX != wallPassable && room.wallX != wallOneWayForward && room.wallX != wallOneWayBackward {
 			allPassableX = false
 		}
 		if room.wallX != wallWall {
 			allWallX = false
 		}
-		if room.wallY != wallPassable {
+		if room.wallY != wallPassable && room.wallY != wallOneWayForward && room.wallY != wallOneWayBackward {
 			allPassableY = false
 		}
 		if room.wallY != wallWall {
@@ -419,6 +463,7 @@ func (f *FieldData) setTilesForRoom(rooms [][][]room, roomX, roomY int) {
 			for j := range roomYGridCount {
 				y := roomY*roomYGridCount + j + edgeOffsetY
 				f.tiles[y][x].ladder = true
+
 			}
 		} else {
 			for z := range f.depth {
@@ -430,6 +475,12 @@ func (f *FieldData) setTilesForRoom(rooms [][][]room, roomX, roomY int) {
 					y := roomY*roomYGridCount + j + edgeOffsetY
 					f.tiles[y][x].ladder = true
 					f.tiles[y][x].color = z + 1
+					if room.wallY == wallOneWayForward {
+						f.tiles[y][x].upward = true
+					}
+					if room.wallY == wallOneWayBackward {
+						f.tiles[y][x].downward = true
+					}
 				}
 			}
 		}
@@ -446,14 +497,23 @@ func (f *FieldData) hasSwitch(x, y int) bool {
 	return f.tiles[y][x].sw
 }
 
-func (f *FieldData) passable(x, y int, currentDepth int) bool {
-	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
+func (f *FieldData) passable(nextx, nextY int, prevX, prevY int, currentDepth int) bool {
+	if nextY < 0 || len(f.tiles) <= nextY || nextx < 0 || len(f.tiles[nextY]) <= nextx {
 		return false
 	}
-	if !f.canBeInTile(x, y, currentDepth) {
+	if !f.canBeInTile(nextx, nextY, currentDepth) {
 		return false
 	}
-	return f.canStandOnTile(x, y-1, currentDepth)
+	if !f.canStandOnTile(nextx, nextY-1, currentDepth) {
+		return false
+	}
+	if nextY > prevY && !f.canGoUp(nextx, nextY) {
+		return false
+	}
+	if nextY < prevY && !f.canGoDown(nextx, nextY) {
+		return false
+	}
+	return true
 }
 
 func (f *FieldData) canBeInTile(x, y int, currentDepth int) bool {
@@ -490,6 +550,22 @@ func (f *FieldData) canStandOnTile(x, y int, currentDepth int) bool {
 		}
 	}
 	return false
+}
+
+func (f *FieldData) canGoUp(x, y int) bool {
+	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
+		return false
+	}
+	t := f.tiles[y][x]
+	return !t.downward
+}
+
+func (f *FieldData) canGoDown(x, y int) bool {
+	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
+		return false
+	}
+	t := f.tiles[y][x]
+	return !t.upward
 }
 
 func (f *FieldData) isGoal(x, y int) bool {
@@ -534,9 +610,9 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDept
 				screen.DrawImage(img, op)
 			}
 			if t.ladder {
+				d := t.color - 1
 				img := f.ladderImage
 				if t.color != 0 {
-					d := t.color - 1
 					var imgX int
 					if currentDepth == d {
 						imgX = 4
@@ -547,6 +623,20 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDept
 					img = f.tilesImage.SubImage(image.Rect(imgX*GridSize, imgY*GridSize, (imgX+1)*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
 				}
 				screen.DrawImage(img, op)
+				if t.upward {
+					if t.color == 0 || currentDepth == d {
+						screen.DrawImage(f.upwardImage, op)
+					} else {
+						screen.DrawImage(f.upwardDisabledImage, op)
+					}
+				}
+				if t.downward {
+					if t.color == 0 || currentDepth == d {
+						screen.DrawImage(f.downwardImage, op)
+					} else {
+						screen.DrawImage(f.downwardDisabledImage, op)
+					}
+				}
 			}
 			if t.sw {
 				imgY := 1 + currentDepth

@@ -80,38 +80,40 @@ func (f *Field) Update() {
 		return
 	}
 
-	x, y := f.playerX, f.playerY
-	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) {
-		y++
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
-		y--
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
-		x--
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
-		x++
-	}
+	prevX, prevY := f.playerX, f.playerY
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		if f.data.hasSwitch(x, y) {
+		if f.data.hasSwitch(prevX, prevY) {
 			f.currentDepth++
 			f.currentDepth %= f.data.depth
 		}
 	}
-	if !f.data.passable(x, y, f.currentDepth) {
+
+	nextX, nextY := prevX, prevY
+	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) {
+		nextY++
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
+		nextY--
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
+		nextX--
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
+		nextX++
+	}
+	if !f.data.passable(nextX, nextY, prevX, prevY, f.currentDepth) {
 		return
 	}
-	if x > f.playerX {
+	if nextX > f.playerX {
 		f.dx = v
 	}
-	if x < f.playerX {
+	if nextX < f.playerX {
 		f.dx = -v
 	}
-	if y > f.playerY {
+	if nextY > f.playerY {
 		f.dy = v
 	}
-	if y < f.playerY {
+	if nextY < f.playerY {
 		f.dy = -v
 	}
 }
