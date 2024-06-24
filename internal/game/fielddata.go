@@ -505,12 +505,17 @@ func (f *FieldData) floorCount() int {
 }
 
 func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDepth int) {
-	// TODO: Skip rendering if the tile is out of the screen.
 	for y := range f.tiles {
 		for x := range f.tiles[y] {
+			dx := x*GridSize + offsetX
+			dy := -(y+1)*GridSize + offsetY
+
+			if dx < -GridSize || dx >= screen.Bounds().Dx() || dy < -GridSize || dy >= screen.Bounds().Dy() {
+				continue
+			}
+
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(x*GridSize), float64(-(y+1)*GridSize))
-			op.GeoM.Translate(float64(offsetX), float64(offsetY))
+			op.GeoM.Translate(float64(dx), float64(dy))
 
 			t := f.tiles[y][x]
 			if t.wall {
