@@ -257,17 +257,37 @@ func (f *FieldData) tryAddPath(rooms [][][]room, x, y, z int, isGoal func(x, y, 
 			} else {
 				// Refuse the new path if the one way direction conflicts.
 				for z := range f.depth {
-					if origX < nextX && rooms[z][origY][origX].wallX == wallOneWayBackward {
-						continue retry
+					if origX < nextX {
+						if rooms[z][origY][origX].wallX == wallOneWayBackward {
+							continue retry
+						}
+						if oneWay && rooms[z][origY][origX].wallX == wallPassable {
+							continue retry
+						}
 					}
-					if origX > nextX && rooms[z][nextY][nextX].wallX == wallOneWayForward {
-						continue retry
+					if origX > nextX {
+						if rooms[z][nextY][nextX].wallX == wallOneWayForward {
+							continue retry
+						}
+						if oneWay && rooms[z][nextY][nextX].wallX == wallPassable {
+							continue retry
+						}
 					}
-					if origY < nextY && rooms[z][origY][origX].wallY == wallOneWayBackward {
-						continue retry
+					if origY < nextY {
+						if rooms[z][origY][origX].wallY == wallOneWayBackward {
+							continue retry
+						}
+						if oneWay && rooms[z][origY][origX].wallY == wallPassable {
+							continue retry
+						}
 					}
-					if origY > nextY && rooms[z][nextY][nextX].wallY == wallOneWayForward {
-						continue retry
+					if origY > nextY {
+						if rooms[z][nextY][nextX].wallY == wallOneWayForward {
+							continue retry
+						}
+						if oneWay && rooms[z][nextY][nextX].wallY == wallPassable {
+							continue retry
+						}
 					}
 				}
 				if rooms[nextZ][nextY][nextX].pathCount != 0 {
