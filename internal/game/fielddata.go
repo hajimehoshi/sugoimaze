@@ -63,15 +63,20 @@ type FieldData struct {
 
 	tiles [][]tile
 
-	tilesImage            *ebiten.Image
-	playerImage           *ebiten.Image
-	wallImage             *ebiten.Image
-	ladderImage           *ebiten.Image
-	goalImage             *ebiten.Image
-	upwardImage           *ebiten.Image
-	downwardImage         *ebiten.Image
-	upwardDisabledImage   *ebiten.Image
-	downwardDisabledImage *ebiten.Image
+	tilesImage                  *ebiten.Image
+	playerImage                 *ebiten.Image
+	wallImage                   *ebiten.Image
+	ladderImage                 *ebiten.Image
+	goalImage                   *ebiten.Image
+	upwardImage                 *ebiten.Image
+	downwardImage               *ebiten.Image
+	upwardDisabledImage         *ebiten.Image
+	downwardDisabledImage       *ebiten.Image
+	colorPassableWallImages     [4]*ebiten.Image
+	colorUnpassableWallImages   [4]*ebiten.Image
+	colorPassableLadderImages   [4]*ebiten.Image
+	colorUnpassableLadderImages [4]*ebiten.Image
+	switchImages                [4]*ebiten.Image
 }
 
 func NewFieldData(difficulty Difficulty) *FieldData {
@@ -87,7 +92,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	case LevelNormal:
 		width = 10
 		height = 10
-		depth = 2 // 3 or more is impossible to represent in 2D.
+		depth = 2
 	case LevelHard:
 		width = 20
 		height = 20
@@ -130,6 +135,21 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	f.downwardImage = f.tilesImage.SubImage(image.Rect(6*GridSize, 0*GridSize, 7*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.upwardDisabledImage = f.tilesImage.SubImage(image.Rect(7*GridSize, 0*GridSize, 8*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.downwardDisabledImage = f.tilesImage.SubImage(image.Rect(8*GridSize, 0*GridSize, 9*GridSize, 1*GridSize)).(*ebiten.Image)
+	for i := range f.colorPassableWallImages {
+		f.colorPassableWallImages[i] = f.tilesImage.SubImage(image.Rect(0*GridSize, (i+1)*GridSize, 1*GridSize, (i+2)*GridSize)).(*ebiten.Image)
+	}
+	for i := range f.colorUnpassableWallImages {
+		f.colorUnpassableWallImages[i] = f.tilesImage.SubImage(image.Rect(1*GridSize, (i+1)*GridSize, 2*GridSize, (i+2)*GridSize)).(*ebiten.Image)
+	}
+	for i := range f.colorPassableLadderImages {
+		f.colorPassableLadderImages[i] = f.tilesImage.SubImage(image.Rect(4*GridSize, (i+1)*GridSize, 5*GridSize, (i+2)*GridSize)).(*ebiten.Image)
+	}
+	for i := range f.colorUnpassableLadderImages {
+		f.colorUnpassableLadderImages[i] = f.tilesImage.SubImage(image.Rect(3*GridSize, (i+1)*GridSize, 4*GridSize, (i+2)*GridSize)).(*ebiten.Image)
+	}
+	for i := range f.switchImages {
+		f.switchImages[i] = f.tilesImage.SubImage(image.Rect(2*GridSize, (i+1)*GridSize, 3*GridSize, (i+2)*GridSize)).(*ebiten.Image)
+	}
 
 	return f
 }
@@ -674,14 +694,11 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDept
 				img := f.wallImage
 				if t.color != 0 && !t.ladder {
 					d := t.color - 1
-					var imgX int
 					if currentDepth == d {
-						imgX = 0
+						img = f.colorPassableWallImages[d]
 					} else {
-						imgX = 1
+						img = f.colorUnpassableWallImages[d]
 					}
-					imgY := 1 + d
-					img = f.tilesImage.SubImage(image.Rect(imgX*GridSize, imgY*GridSize, (imgX+1)*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
 				}
 				screen.DrawImage(img, op)
 			}
@@ -689,14 +706,11 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDept
 				d := t.color - 1
 				img := f.ladderImage
 				if t.color != 0 {
-					var imgX int
 					if currentDepth == d {
-						imgX = 4
+						img = f.colorPassableLadderImages[d]
 					} else {
-						imgX = 3
+						img = f.colorUnpassableLadderImages[d]
 					}
-					imgY := 1 + d
-					img = f.tilesImage.SubImage(image.Rect(imgX*GridSize, imgY*GridSize, (imgX+1)*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
 				}
 				screen.DrawImage(img, op)
 				if t.upward {
@@ -715,8 +729,7 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDept
 				}
 			}
 			if t.sw {
-				imgY := 1 + currentDepth
-				switchImage := f.tilesImage.SubImage(image.Rect(2*GridSize, imgY*GridSize, 3*GridSize, (imgY+1)*GridSize)).(*ebiten.Image)
+				switchImage := f.switchImages[currentDepth]
 				screen.DrawImage(switchImage, op)
 			}
 			if t.goal {
