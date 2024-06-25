@@ -5,6 +5,7 @@ package main
 
 import (
 	"image/color"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -28,8 +29,13 @@ func NewGameScene(difficulty game.Difficulty) *GameScene {
 func (g *GameScene) Update(gameContext GameContext) error {
 	if g.field == nil && g.fieldCh == nil {
 		g.fieldCh = make(chan *game.Field)
+		// Wait one second at least to show the message.
+		t := time.NewTimer(time.Second)
 		go func() {
-			g.fieldCh <- game.NewField(g.difficulty)
+			f := game.NewField(g.difficulty)
+			<-t.C
+			t.Stop()
+			g.fieldCh <- f
 			close(g.fieldCh)
 			g.fieldCh = nil
 		}()
@@ -57,7 +63,7 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{0, 0, 0, 255})
 
 	if g.field == nil {
-		ebitenutil.DebugPrint(screen, "Generating a field...")
+		ebitenutil.DebugPrint(screen, "Currently under construction.\nPlease wait a moment.")
 		return
 	}
 	g.field.Draw(screen)
