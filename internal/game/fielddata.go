@@ -94,8 +94,8 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 		height = 10
 		depth = 2
 	case LevelHard:
-		width = 20
-		height = 20
+		width = 15
+		height = 15
 		depth = 2
 	default:
 		panic("not reached")
