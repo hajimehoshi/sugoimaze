@@ -22,6 +22,7 @@ const (
 	LevelEasy Difficulty = iota
 	LevelNormal
 	LevelHard
+	LevelSugoi
 )
 
 type wall int
@@ -97,6 +98,10 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 		width = 15
 		height = 15
 		depth = 2
+	case LevelSugoi:
+		width = 20
+		height = 20
+		depth = 2 // TODO: Add more dimensions.
 	default:
 		panic("not reached")
 	}

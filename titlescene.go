@@ -25,8 +25,8 @@ func (t *TitleScene) Update(game GameContext) error {
 	if t.cursorIndex < 0 {
 		t.cursorIndex = 0
 	}
-	if t.cursorIndex > 2 {
-		t.cursorIndex = 2
+	if t.cursorIndex > 3 {
+		t.cursorIndex = 3
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
@@ -38,6 +38,8 @@ func (t *TitleScene) Update(game GameContext) error {
 			difficulty = gamepkg.LevelNormal
 		case 2:
 			difficulty = gamepkg.LevelHard
+		case 3:
+			difficulty = gamepkg.LevelSugoi
 		}
 		game.GoToGame(difficulty)
 	}
@@ -46,7 +48,7 @@ func (t *TitleScene) Update(game GameContext) error {
 
 func (t *TitleScene) Draw(screen *ebiten.Image) {
 	msg := "The Sugoi Maze Building\n\n"
-	for i, level := range []string{"Easy", "Normal", "Hard"} {
+	for i, level := range []string{"Easy", "Normal", "Hard", "Sugoi"} {
 		if i == t.cursorIndex {
 			msg += "-> "
 		} else {
