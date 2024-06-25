@@ -233,13 +233,13 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 					continue
 				}
 				nextY--
-				oneWay = d == 6
+				oneWay = rand.IntN(5) == 0
 			case 9, 10, 11:
 				if nextY >= f.height-1 {
 					continue
 				}
 				nextY++
-				oneWay = d == 9
+				oneWay = rand.IntN(5) == 0
 			default:
 				nextZ = (nextZ + (d - 12) + 1) % f.depth
 				zChanged = true
