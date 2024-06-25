@@ -208,6 +208,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 		var goalReached bool
 		var nextX, nextY, nextZ int
 		var oneWay bool
+		var found bool
 
 	retry:
 		for range 100 {
@@ -257,24 +258,9 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 					}
 				}
 			} else {
-				// Refuse the new path if the one way direction conflicts.
+				// Refuse the new path if the one way direction conflicts,
+				// or there is already a passable way in another dimension.
 				for z := range f.depth {
-					if origX < nextX {
-						if rooms[z][origY][origX].wallX == wallOneWayBackward {
-							continue retry
-						}
-						if oneWay && rooms[z][origY][origX].wallX == wallPassable {
-							continue retry
-						}
-					}
-					if origX > nextX {
-						if rooms[z][nextY][nextX].wallX == wallOneWayForward {
-							continue retry
-						}
-						if oneWay && rooms[z][nextY][nextX].wallX == wallPassable {
-							continue retry
-						}
-					}
 					if origY < nextY {
 						if rooms[z][origY][origX].wallY == wallOneWayBackward {
 							continue retry
@@ -298,17 +284,19 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 			}
 
 			if !visited {
+				found = true
 				break
 			}
 
 			if isGoal(nextX, nextY, nextZ, rooms, count+1) {
 				goalReached = true
+				found = true
 				break
 			}
 		}
 
 		// Give up when no new path is created.
-		if nextX == x && nextY == y && nextZ == z {
+		if !found {
 			return nil
 		}
 
@@ -323,13 +311,35 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 			rooms[z][y][nextX].wallX = wallPassable
 		case y < nextY:
 			if oneWay {
-				rooms[z][y][x].wallY = wallOneWayForward
+				for z := range f.depth {
+					if z == nextZ {
+						rooms[z][y][x].wallY = wallOneWayForward
+						continue
+					}
+					if rooms[z][y][x].wallY == wallOneWayBackward {
+						panic("not reached")
+					}
+					if rooms[z][y][x].wallY == wallPassable {
+						panic("not reached")
+					}
+				}
 			} else {
 				rooms[z][y][x].wallY = wallPassable
 			}
 		case y > nextY:
 			if oneWay {
-				rooms[z][nextY][x].wallY = wallOneWayBackward
+				for z := range f.depth {
+					if z == nextZ {
+						rooms[z][nextY][x].wallY = wallOneWayBackward
+						continue
+					}
+					if rooms[z][nextY][x].wallY == wallOneWayForward {
+						panic("not reached")
+					}
+					if rooms[z][nextY][x].wallY == wallPassable {
+						panic("not reached")
+					}
+				}
 			} else {
 				rooms[z][nextY][x].wallY = wallPassable
 			}
