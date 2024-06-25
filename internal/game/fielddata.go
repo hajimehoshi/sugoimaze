@@ -81,7 +81,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 
 	switch difficulty {
 	case LevelEasy:
-		width = 7
+		width = 5
 		height = 5
 		depth = 2
 	case LevelNormal:
@@ -89,7 +89,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 		height = 10
 		depth = 2 // 3 or more is impossible to represent in 2D.
 	case LevelHard:
-		width = 13
+		width = 20
 		height = 20
 		depth = 2
 	default:
