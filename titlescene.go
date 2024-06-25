@@ -45,7 +45,7 @@ func (t *TitleScene) Update(game GameContext) error {
 }
 
 func (t *TitleScene) Draw(screen *ebiten.Image) {
-	msg := "Gopher Maze Bldg.\n\n"
+	msg := "The Sugoi Maze Building\n\n"
 	for i, level := range []string{"Easy", "Normal", "Hard"} {
 		if i == t.cursorIndex {
 			msg += "-> "

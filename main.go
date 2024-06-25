@@ -56,7 +56,7 @@ func (g *Game) GoToTitle() {
 }
 
 func main() {
-	ebiten.SetWindowTitle("Ebitengine Game Jam 2024")
+	ebiten.SetWindowTitle("The Sugoi Maze Building")
 	ebiten.SetWindowSize(640, 640)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	if err := ebiten.RunGame(NewGame()); err != nil {
