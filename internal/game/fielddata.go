@@ -268,12 +268,18 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 						if oneWay && rooms[z][origY][origX].wallY == wallPassable {
 							continue retry
 						}
+						if !oneWay && (rooms[z][origY][origX].wallY == wallOneWayForward || rooms[z][origY][origX].wallY == wallOneWayBackward) {
+							continue retry
+						}
 					}
 					if origY > nextY {
 						if rooms[z][nextY][nextX].wallY == wallOneWayForward {
 							continue retry
 						}
 						if oneWay && rooms[z][nextY][nextX].wallY == wallPassable {
+							continue retry
+						}
+						if !oneWay && (rooms[z][nextY][nextX].wallY == wallOneWayForward || rooms[z][nextY][nextX].wallY == wallOneWayBackward) {
 							continue retry
 						}
 					}
@@ -324,7 +330,17 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 					}
 				}
 			} else {
-				rooms[z][y][x].wallY = wallPassable
+				for z := range f.depth {
+					if z == nextZ {
+						rooms[z][y][x].wallY = wallPassable
+					}
+					if rooms[z][y][x].wallY == wallOneWayForward {
+						panic("not reached")
+					}
+					if rooms[z][y][x].wallY == wallOneWayBackward {
+						panic("not reached")
+					}
+				}
 			}
 		case y > nextY:
 			if oneWay {
@@ -341,7 +357,17 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 					}
 				}
 			} else {
-				rooms[z][nextY][x].wallY = wallPassable
+				for z := range f.depth {
+					if z == nextZ {
+						rooms[z][nextY][x].wallY = wallPassable
+					}
+					if rooms[z][nextY][x].wallY == wallOneWayForward {
+						panic("not reached")
+					}
+					if rooms[z][nextY][x].wallY == wallOneWayBackward {
+						panic("not reached")
+					}
+				}
 			}
 		case z != nextZ:
 			for z := 0; z < f.depth-1; z++ {
@@ -445,20 +471,20 @@ func (f *FieldData) setTilesForRoom(rooms [][][]room, roomX, roomY int) {
 		edgeOffsetY = 1
 	)
 
-	allPassableX := true
-	allPassableY := true
+	allPassableOrOneWayX := true
+	allPassableOrOneWayY := true
 	allWallX := true
 	allWallY := true
 	for z := range f.depth {
 		room := rooms[z][roomY][roomX]
 		if room.wallX != wallPassable && room.wallX != wallOneWayForward && room.wallX != wallOneWayBackward {
-			allPassableX = false
+			allPassableOrOneWayX = false
 		}
 		if room.wallX != wallWall {
 			allWallX = false
 		}
 		if room.wallY != wallPassable && room.wallY != wallOneWayForward && room.wallY != wallOneWayBackward {
-			allPassableY = false
+			allPassableOrOneWayY = false
 		}
 		if room.wallY != wallWall {
 			allWallY = false
@@ -470,7 +496,7 @@ func (f *FieldData) setTilesForRoom(rooms [][][]room, roomX, roomY int) {
 			y := roomY*roomYGridCount + j + edgeOffsetY
 			f.tiles[y][x].wall = true
 		}
-	} else if !allPassableX {
+	} else if !allPassableOrOneWayX {
 		for z := range f.depth {
 			room := rooms[z][roomY][roomX]
 			if room.wallX == wallWall {
@@ -492,11 +518,28 @@ func (f *FieldData) setTilesForRoom(rooms [][][]room, roomX, roomY int) {
 	}
 	if !allWallY {
 		x := roomX*roomXGridCount + 1 + (roomY % 2) + edgeOffsetX
-		if allPassableY {
+		if allPassableOrOneWayY {
+			wallY := wallWall
+			// Check all the wallY are the same.
+			for z := range f.depth {
+				room := rooms[z][roomY][roomX]
+				if wallY == wallWall {
+					wallY = room.wallY
+					continue
+				}
+				if wallY != room.wallY {
+					panic("not reached")
+				}
+			}
 			for j := range roomYGridCount {
 				y := roomY*roomYGridCount + j + edgeOffsetY
 				f.tiles[y][x].ladder = true
-
+				if wallY == wallOneWayForward {
+					f.tiles[y][x].upward = true
+				}
+				if wallY == wallOneWayBackward {
+					f.tiles[y][x].downward = true
+				}
 			}
 		} else {
 			for z := range f.depth {
