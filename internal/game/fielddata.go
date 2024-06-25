@@ -216,7 +216,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 			oneWay = false
 
 			var zChanged bool
-			switch d := rand.IntN(12 + f.depth); d {
+			switch d := rand.IntN(12 + f.depth - 1); d {
 			case 0, 1, 2:
 				if nextX <= 0 {
 					continue
@@ -240,7 +240,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 				nextY++
 				oneWay = d == 9
 			default:
-				nextZ = (nextZ + (d - 12)) % f.depth
+				nextZ = (nextZ + (d - 12) + 1) % f.depth
 				zChanged = true
 			}
 
