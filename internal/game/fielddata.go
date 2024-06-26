@@ -241,7 +241,6 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 			nextX, nextY, nextZ = x, y, z
 			oneWay = false
 
-			var zChanged bool
 			switch d := rand.IntN(12 + f.depth - 1); d {
 			case 0, 1, 2:
 				if nextX <= 0 {
@@ -267,12 +266,11 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 				oneWay = rand.IntN(5) == 0
 			default:
 				nextZ = (nextZ + (d - 12) + 1) % f.depth
-				zChanged = true
 			}
 
-			// The next room is already visited.
+			// visited indicates whether the next room is already visited.
 			var visited bool
-			if zChanged {
+			if origZ != nextZ {
 				for z := range f.depth {
 					if z == origZ {
 						continue
