@@ -257,20 +257,19 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 					continue
 				}
 				nextY--
-				oneWay = rand.IntN(5) == 0
 			case 9, 10, 11:
 				if nextY >= f.height-1 {
 					continue
 				}
 				nextY++
-				oneWay = rand.IntN(5) == 0
 			default:
 				nextZ = (nextZ + (d - 12) + 1) % f.depth
 			}
 
 			// visited indicates whether the next room is already visited.
 			var visited bool
-			if origZ != nextZ {
+			switch {
+			case origZ != nextZ:
 				for z := range f.depth {
 					if z == origZ {
 						continue
@@ -280,33 +279,42 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 						break
 					}
 				}
-			} else {
-				// Refuse the new path if the one way direction conflicts,
-				// or there is already a passable way in another dimension.
+			case origY != nextY:
+				allWall := true
+				allWallOrOneWay := true
 				for z := range f.depth {
 					if origY < nextY {
+						// There is a conflicted one-way wall.
 						if rooms[z][origY][origX].wallY == wallOneWayBackward {
 							continue retry
 						}
-						if oneWay && rooms[z][origY][origX].wallY == wallPassable {
-							continue retry
-						}
-						if !oneWay && (rooms[z][origY][origX].wallY == wallOneWayForward || rooms[z][origY][origX].wallY == wallOneWayBackward) {
-							continue retry
+						if rooms[z][origY][origX].wallY != wallWall {
+							allWall = false
+							if rooms[z][origY][origX].wallY != wallOneWayForward {
+								allWallOrOneWay = false
+							}
 						}
 					}
 					if origY > nextY {
+						// There is a conflicted one-way wall.
 						if rooms[z][nextY][nextX].wallY == wallOneWayForward {
 							continue retry
 						}
-						if oneWay && rooms[z][nextY][nextX].wallY == wallPassable {
-							continue retry
-						}
-						if !oneWay && (rooms[z][nextY][nextX].wallY == wallOneWayForward || rooms[z][nextY][nextX].wallY == wallOneWayBackward) {
-							continue retry
+						if rooms[z][nextY][nextX].wallY != wallWall {
+							allWall = false
+							if rooms[z][nextY][nextX].wallY != wallOneWayBackward {
+								allWallOrOneWay = false
+							}
 						}
 					}
 				}
+				if allWall {
+					oneWay = rand.IntN(5) == 0
+				} else if allWallOrOneWay {
+					oneWay = true
+				}
+				fallthrough
+			default:
 				if rooms[nextZ][nextY][nextX].pathCount != 0 {
 					visited = true
 				}
