@@ -62,6 +62,8 @@ type FieldData struct {
 	goalY  int
 	goalZ  int
 
+	colorPalette [4]int
+
 	tiles [][]tile
 
 	tilesImage                  *ebiten.Image
@@ -77,6 +79,10 @@ type FieldData struct {
 	colorUnpassableWallImages   [4]*ebiten.Image
 	colorPassableLadderImages   [4]*ebiten.Image
 	colorUnpassableLadderImages [4]*ebiten.Image
+	colorUpwardImage            [4]*ebiten.Image
+	colorDownwardImage          [4]*ebiten.Image
+	colorUpwardDisabledImage    [4]*ebiten.Image
+	colorDownwardDisabledImage  [4]*ebiten.Image
 	switchImages                [4]*ebiten.Image
 }
 
@@ -117,6 +123,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 		goalY:  height - 1,
 		goalZ:  depth - 1,
 	}
+	copy(f.colorPalette[:], rand.Perm(4))
 
 	var rooms [][][]room
 	for {
@@ -151,6 +158,18 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	}
 	for i := range f.colorUnpassableLadderImages {
 		f.colorUnpassableLadderImages[i] = f.tilesImage.SubImage(image.Rect(3*GridSize, (i+1)*GridSize, 4*GridSize, (i+2)*GridSize)).(*ebiten.Image)
+	}
+	for i := range f.colorUpwardImage {
+		f.colorUpwardImage[i] = f.tilesImage.SubImage(image.Rect(5*GridSize, (i+1)*GridSize, 6*GridSize, (i+2)*GridSize)).(*ebiten.Image)
+	}
+	for i := range f.colorDownwardImage {
+		f.colorDownwardImage[i] = f.tilesImage.SubImage(image.Rect(6*GridSize, (i+1)*GridSize, 7*GridSize, (i+2)*GridSize)).(*ebiten.Image)
+	}
+	for i := range f.colorUpwardDisabledImage {
+		f.colorUpwardDisabledImage[i] = f.tilesImage.SubImage(image.Rect(7*GridSize, (i+1)*GridSize, 8*GridSize, (i+2)*GridSize)).(*ebiten.Image)
+	}
+	for i := range f.colorDownwardDisabledImage {
+		f.colorDownwardDisabledImage[i] = f.tilesImage.SubImage(image.Rect(8*GridSize, (i+1)*GridSize, 9*GridSize, (i+2)*GridSize)).(*ebiten.Image)
 	}
 	for i := range f.switchImages {
 		f.switchImages[i] = f.tilesImage.SubImage(image.Rect(2*GridSize, (i+1)*GridSize, 3*GridSize, (i+2)*GridSize)).(*ebiten.Image)
@@ -716,41 +735,47 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDept
 				if t.color != 0 && !t.ladder {
 					d := t.color - 1
 					if currentDepth == d {
-						img = f.colorPassableWallImages[d]
+						img = f.colorPassableWallImages[f.colorPalette[d]]
 					} else {
-						img = f.colorUnpassableWallImages[d]
+						img = f.colorUnpassableWallImages[f.colorPalette[d]]
 					}
 				}
 				screen.DrawImage(img, op)
 			}
 			if t.ladder {
 				d := t.color - 1
-				img := f.ladderImage
-				if t.color != 0 {
-					if currentDepth == d {
-						img = f.colorPassableLadderImages[d]
-					} else {
-						img = f.colorUnpassableLadderImages[d]
+				if !t.upward && !t.downward {
+					img := f.ladderImage
+					if t.color != 0 {
+						if currentDepth == d {
+							img = f.colorPassableLadderImages[f.colorPalette[d]]
+						} else {
+							img = f.colorUnpassableLadderImages[f.colorPalette[d]]
+						}
 					}
+					screen.DrawImage(img, op)
 				}
-				screen.DrawImage(img, op)
 				if t.upward {
-					if t.color == 0 || currentDepth == d {
+					if t.color == 0 {
 						screen.DrawImage(f.upwardImage, op)
+					} else if currentDepth == d {
+						screen.DrawImage(f.colorUpwardImage[f.colorPalette[d]], op)
 					} else {
-						screen.DrawImage(f.upwardDisabledImage, op)
+						screen.DrawImage(f.colorUpwardDisabledImage[f.colorPalette[d]], op)
 					}
 				}
 				if t.downward {
-					if t.color == 0 || currentDepth == d {
+					if t.color == 0 {
 						screen.DrawImage(f.downwardImage, op)
+					} else if currentDepth == d {
+						screen.DrawImage(f.colorDownwardImage[f.colorPalette[d]], op)
 					} else {
-						screen.DrawImage(f.downwardDisabledImage, op)
+						screen.DrawImage(f.colorDownwardDisabledImage[f.colorPalette[d]], op)
 					}
 				}
 			}
 			if t.sw {
-				switchImage := f.switchImages[currentDepth]
+				switchImage := f.switchImages[f.colorPalette[currentDepth]]
 				screen.DrawImage(switchImage, op)
 			}
 			if t.goal {
