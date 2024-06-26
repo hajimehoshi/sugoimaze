@@ -89,16 +89,16 @@ func (f *Field) Update() {
 	}
 
 	nextX, nextY := prevX, prevY
-	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) {
+	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
 		nextY++
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
+	if ebiten.IsKeyPressed(ebiten.KeyArrowDown) || ebiten.IsKeyPressed(ebiten.KeyS) {
 		nextY--
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) {
+	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) || ebiten.IsKeyPressed(ebiten.KeyA) {
 		nextX--
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
+	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
 		nextX++
 	}
 	if !f.data.passable(nextX, nextY, prevX, prevY, f.currentDepth) {
