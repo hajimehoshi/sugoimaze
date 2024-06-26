@@ -614,20 +614,20 @@ func (f *FieldData) hasSwitch(x, y int) bool {
 	return f.tiles[y][x].sw
 }
 
-func (f *FieldData) passable(nextx, nextY int, prevX, prevY int, currentDepth int) bool {
-	if nextY < 0 || len(f.tiles) <= nextY || nextx < 0 || len(f.tiles[nextY]) <= nextx {
+func (f *FieldData) passable(nextX, nextY int, prevX, prevY int, currentDepth int) bool {
+	if nextY < 0 || len(f.tiles) <= nextY || nextX < 0 || len(f.tiles[nextY]) <= nextX {
 		return false
 	}
-	if !f.canBeInTile(nextx, nextY, currentDepth) {
+	if !f.canBeInTile(nextX, nextY, currentDepth) {
 		return false
 	}
-	if !f.canStandOnTile(nextx, nextY-1, currentDepth) {
+	if !f.canStandOnTile(nextX, nextY-1, currentDepth) {
 		return false
 	}
-	if nextY > prevY && !f.canGoUp(nextx, nextY) {
+	if nextY > prevY && !f.canGoUp(nextX, nextY) {
 		return false
 	}
-	if nextY < prevY && !f.canGoDown(nextx, nextY) {
+	if nextY < prevY && !f.canGoDown(nextX, nextY) {
 		return false
 	}
 	return true
