@@ -284,7 +284,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 				allWallOrOneWay := true
 				for z := range f.depth {
 					if origY < nextY {
-						// There is a conflicted one-way wall.
+						// There is a conflicted one-way passage.
 						if rooms[z][origY][origX].wallY == wallOneWayBackward {
 							continue retry
 						}
@@ -296,7 +296,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 						}
 					}
 					if origY > nextY {
-						// There is a conflicted one-way wall.
+						// There is a conflicted one-way passage.
 						if rooms[z][nextY][nextX].wallY == wallOneWayForward {
 							continue retry
 						}
@@ -312,6 +312,16 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 					oneWay = rand.IntN(5) == 0
 				} else if allWallOrOneWay {
 					oneWay = true
+				}
+				if allWallOrOneWay {
+					// A branch must have a one-way passage.
+					// Just before the goal, the passage should be one-way so that branches are created more easily.
+					if isGoal(nextX, nextY, nextZ, rooms, count+1) {
+						oneWay = true
+						goalReached = true
+						found = true
+						break
+					}
 				}
 				fallthrough
 			default:
