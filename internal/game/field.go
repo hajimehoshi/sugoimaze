@@ -13,13 +13,14 @@ import (
 )
 
 type Field struct {
-	data         *FieldData
-	playerX      int
-	playerY      int
-	dx           int
-	dy           int
-	currentDepth int
-	goalReached  bool
+	data          *FieldData
+	playerX       int
+	playerY       int
+	dx            int
+	dy            int
+	currentDepth0 int
+	currentDepth1 int
+	goalReached   bool
 
 	playerImage *ebiten.Image
 }
@@ -82,9 +83,13 @@ func (f *Field) Update() {
 
 	prevX, prevY := f.playerX, f.playerY
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		if f.data.hasSwitch(prevX, prevY) {
-			f.currentDepth++
-			f.currentDepth %= f.data.depth
+		if f.data.hasSwitch(prevX, prevY, f.currentDepth1) {
+			f.currentDepth0++
+			f.currentDepth0 %= f.data.depth0
+		}
+		if f.data.hasDoor(prevX, prevY, f.currentDepth0) {
+			f.currentDepth1++
+			f.currentDepth1 %= f.data.depth1
 		}
 	}
 
@@ -101,7 +106,7 @@ func (f *Field) Update() {
 	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
 		nextX++
 	}
-	if !f.data.passable(nextX, nextY, prevX, prevY, f.currentDepth) {
+	if !f.data.passable(nextX, nextY, prevX, prevY, f.currentDepth0, f.currentDepth1) {
 		return
 	}
 	if nextX > f.playerX {
@@ -123,7 +128,7 @@ func (f *Field) Draw(screen *ebiten.Image) {
 	cy := screen.Bounds().Dy() / 3 * 2
 	offsetX := cx - (f.playerX*GridSize + f.dx)
 	offsetY := cy + (f.playerY*GridSize + f.dy)
-	f.data.Draw(screen, offsetX, offsetY, f.currentDepth)
+	f.data.Draw(screen, offsetX, offsetY, f.currentDepth0, f.currentDepth1)
 
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(f.playerX*GridSize+f.dx), float64(-((f.playerY+1)*GridSize + f.dy)))

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	_ "embed"
 	"image"
+	"image/color"
 	"image/png"
 	"math/rand/v2"
 
@@ -38,29 +39,39 @@ type room struct {
 	passageX  passage
 	passageY  passage
 	passageZ  passage
+	passageW  passage
 	pathCount int
 }
 
 type tile struct {
-	wall     bool
-	ladder   bool
-	upward   bool
-	downward bool
-	sw       bool
-	goal     bool
-	color    int // 0 is no color. 1 and more is depth+1.
+	walls     []bool
+	ladders   []bool
+	upward    bool
+	downward  bool
+	switches  []bool
+	door      bool
+	doorUpper bool
+	goal      bool
+
+	// 0 is no color. 1 and more is depth+1.
+	wallColors   []int
+	ladderColors []int
+	doorColor    int
 }
 
 type FieldData struct {
 	width  int
 	height int
-	depth  int
+	depth0 int
+	depth1 int
 	startX int
 	startY int
 	startZ int
+	startW int
 	goalX  int
 	goalY  int
 	goalZ  int
+	goalW  int
 
 	colorPalette [4]int
 
@@ -75,6 +86,7 @@ type FieldData struct {
 	downwardImage               *ebiten.Image
 	upwardDisabledImage         *ebiten.Image
 	downwardDisabledImage       *ebiten.Image
+	doorImage                   *ebiten.Image
 	colorPassableWallImages     [4]*ebiten.Image
 	colorUnpassableWallImages   [4]*ebiten.Image
 	colorPassableLadderImages   [4]*ebiten.Image
@@ -84,30 +96,37 @@ type FieldData struct {
 	colorUpwardDisabledImage    [4]*ebiten.Image
 	colorDownwardDisabledImage  [4]*ebiten.Image
 	switchImages                [4]*ebiten.Image
+	colorDoorImages             [4]*ebiten.Image
+	colorDoorDisabledImages     [4]*ebiten.Image
 }
 
 func NewFieldData(difficulty Difficulty) *FieldData {
 	var width int
 	var height int
-	var depth int
+	var depth0 int
+	var depth1 int
 
 	switch difficulty {
 	case LevelEasy:
 		width = 5
 		height = 5
-		depth = 2
+		depth0 = 2
+		depth1 = 1
 	case LevelNormal:
 		width = 8
 		height = 8
-		depth = 2
+		depth0 = 2
+		depth1 = 1
 	case LevelHard:
 		width = 11
 		height = 11
-		depth = 2
+		depth0 = 2
+		depth1 = 1
 	case LevelSugoi:
 		width = 14
 		height = 14
-		depth = 2 // TODO: Add more dimensions.
+		depth0 = 2
+		depth1 = 2
 	default:
 		panic("not reached")
 	}
@@ -115,17 +134,20 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	f := &FieldData{
 		width:  width,
 		height: height,
-		depth:  depth,
+		depth0: depth0,
+		depth1: depth1,
 		startX: 0,
 		startY: 0,
 		startZ: 0,
+		startW: 0,
 		goalX:  width - 1,
 		goalY:  height - 1,
-		goalZ:  depth - 1,
+		goalZ:  depth0 - 1,
+		goalW:  depth1 - 1,
 	}
 	copy(f.colorPalette[:], rand.Perm(4))
 
-	var rooms [][][]room
+	var rooms [][][][]room
 	for {
 		if rooms = f.generateRooms(); rooms != nil {
 			break
@@ -147,6 +169,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	f.downwardImage = f.tilesImage.SubImage(image.Rect(6*GridSize, 0*GridSize, 7*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.upwardDisabledImage = f.tilesImage.SubImage(image.Rect(7*GridSize, 0*GridSize, 8*GridSize, 1*GridSize)).(*ebiten.Image)
 	f.downwardDisabledImage = f.tilesImage.SubImage(image.Rect(8*GridSize, 0*GridSize, 9*GridSize, 1*GridSize)).(*ebiten.Image)
+	f.doorImage = f.tilesImage.SubImage(image.Rect(0*GridSize, 5*GridSize, 1*GridSize, 7*GridSize)).(*ebiten.Image)
 	for i := range f.colorPassableWallImages {
 		f.colorPassableWallImages[i] = f.tilesImage.SubImage(image.Rect(0*GridSize, (i+1)*GridSize, 1*GridSize, (i+2)*GridSize)).(*ebiten.Image)
 	}
@@ -174,53 +197,62 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	for i := range f.switchImages {
 		f.switchImages[i] = f.tilesImage.SubImage(image.Rect(2*GridSize, (i+1)*GridSize, 3*GridSize, (i+2)*GridSize)).(*ebiten.Image)
 	}
+	for i := range f.colorDoorImages {
+		f.colorDoorImages[i] = f.tilesImage.SubImage(image.Rect((2*i+2)*GridSize, 5*GridSize, (2*i+3)*GridSize, 7*GridSize)).(*ebiten.Image)
+	}
+	for i := range f.colorDoorDisabledImages {
+		f.colorDoorDisabledImages[i] = f.tilesImage.SubImage(image.Rect((2*i+1)*GridSize, 5*GridSize, (2*i+2)*GridSize, 7*GridSize)).(*ebiten.Image)
+	}
 
 	return f
 }
 
-func (f *FieldData) generateRooms() [][][]room {
-	rooms := make([][][]room, f.depth)
-	for z := range f.depth {
-		rooms[z] = make([][]room, f.height)
-		for y := 0; y < f.height; y++ {
-			rooms[z][y] = make([]room, f.width)
+func (f *FieldData) generateRooms() [][][][]room {
+	rooms := make([][][][]room, f.depth1)
+	for w := range f.depth1 {
+		rooms[w] = make([][][]room, f.depth0)
+		for z := range f.depth0 {
+			rooms[w][z] = make([][]room, f.height)
+			for y := 0; y < f.height; y++ {
+				rooms[w][z][y] = make([]room, f.width)
+			}
 		}
 	}
 
 	// Generate the correct path.
-	x, y, z := f.startX, f.startY, f.startZ
-	rooms[z][y][x].pathCount = 1
-	newRooms := f.tryAddPathWithOneWay(rooms, x, y, z, func(x, y, z int, rooms [][][]room, count int) bool {
-		return x == f.goalX && y == f.goalY && z == f.goalZ
+	x, y, z, w := f.startX, f.startY, f.startZ, f.startW
+	rooms[w][z][y][x].pathCount = 1
+	newRooms := f.tryAddPathWithOneWay(rooms, x, y, z, w, func(x, y, z, w int, rooms [][][][]room, count int) bool {
+		return x == f.goalX && y == f.goalY && z == f.goalZ && w == f.goalW
 	})
 	if newRooms == nil {
 		return nil
 	}
 	rooms = newRooms
-	rooms[f.goalZ][f.goalY][f.goalX].passageY = passagePassable
+	rooms[f.goalW][f.goalZ][f.goalY][f.goalX].passageY = passagePassable
 
 	// Add branches.
 	var count int
 	for !f.areEnoughRoomsVisited(rooms) {
-		var startX, startY, startZ int
+		var startX, startY, startZ, startW int
 		for {
-			startX, startY, startZ = rand.IntN(f.width), rand.IntN(f.height), rand.IntN(f.depth)
-			if rooms[startZ][startY][startX].pathCount != 0 {
+			startX, startY, startZ, startW = rand.IntN(f.width), rand.IntN(f.height), rand.IntN(f.depth0), rand.IntN(f.depth1)
+			if rooms[startW][startZ][startY][startX].pathCount != 0 {
 				break
 			}
 		}
-		startCount := rooms[startZ][startY][startX].pathCount
-		newRooms := f.tryAddPathWithOneWay(rooms, startX, startY, startZ, func(x, y, z int, rooms [][][]room, count int) bool {
-			if x == startX && y == startY && z == startZ {
+		startCount := rooms[startW][startZ][startY][startX].pathCount
+		newRooms := f.tryAddPathWithOneWay(rooms, startX, startY, startZ, startW, func(x, y, z, w int, rooms [][][][]room, count int) bool {
+			if x == startX && y == startY && z == startZ && w == startW {
 				return false
 			}
-			if rooms[z][y][x].pathCount == 0 {
+			if rooms[w][z][y][x].pathCount == 0 {
 				return false
 			}
 			// A branch must not be a shortcut.
 			// Also, a good branch should go back to a position close to the start position.
 			// Multiply a constant to make better branches.
-			if startCount <= rooms[z][y][x].pathCount*5/4 {
+			if startCount <= rooms[w][z][y][x].pathCount*5/4 {
 				return false
 			}
 			return true
@@ -239,34 +271,37 @@ func (f *FieldData) generateRooms() [][][]room {
 	return rooms
 }
 
-func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal func(x, y, z int, rooms [][][]room, count int) bool) [][][]room {
+func (f *FieldData) tryAddPathWithOneWay(rooms [][][][]room, x, y, z, w int, isGoal func(x, y, z, w int, rooms [][][][]room, count int) bool) [][][][]room {
 	// Clone rooms.
 	origRooms := rooms
-	rooms = make([][][]room, len(origRooms))
-	for z := range f.depth {
-		rooms[z] = make([][]room, len(origRooms[z]))
-		for y := range f.height {
-			rooms[z][y] = append([]room{}, origRooms[z][y]...)
+	rooms = make([][][][]room, len(origRooms))
+	for w := range f.depth1 {
+		rooms[w] = make([][][]room, len(origRooms[w]))
+		for z := range f.depth0 {
+			rooms[w][z] = make([][]room, len(origRooms[w][z]))
+			for y := range f.height {
+				rooms[w][z][y] = append([]room{}, origRooms[w][z][y]...)
+			}
 		}
 	}
 
 	var oneWayExists bool
 
-	count := rooms[z][y][x].pathCount
+	count := rooms[w][z][y][x].pathCount
 
-	for !isGoal(x, y, z, rooms, count) {
+	for !isGoal(x, y, z, w, rooms, count) {
 		var goalReached bool
-		var nextX, nextY, nextZ int
+		var nextX, nextY, nextZ, nextW int
 		var oneWay bool
 		var found bool
 
 	retry:
 		for range 100 {
-			origX, origY, origZ := x, y, z
-			nextX, nextY, nextZ = x, y, z
+			origX, origY, origZ, origW := x, y, z, w
+			nextX, nextY, nextZ, nextW = x, y, z, w
 			oneWay = false
 
-			switch d := rand.IntN(12 + f.depth - 1); d {
+			switch d := rand.IntN(12 + (f.depth0 - 1) + (f.depth1 - 1)); d {
 			case 0, 1, 2:
 				if nextX <= 0 {
 					continue
@@ -287,19 +322,31 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 					continue
 				}
 				nextY++
-			default:
-				nextZ = (nextZ + (d - 12) + 1) % f.depth
+			case 12:
+				nextZ = (nextZ + 1) % f.depth0
+			case 13:
+				nextW = (nextW + 1) % f.depth1
 			}
 
 			// visited indicates whether the next room is already visited.
 			var visited bool
 			switch {
 			case origZ != nextZ:
-				for z := range f.depth {
+				for z := range f.depth0 {
 					if z == origZ {
 						continue
 					}
-					if rooms[nextZ][nextY][nextX].pathCount != 0 {
+					if rooms[nextW][nextZ][nextY][nextX].pathCount != 0 {
+						visited = true
+						break
+					}
+				}
+			case origW != nextW:
+				for w := range f.depth1 {
+					if w == origW {
+						continue
+					}
+					if rooms[nextW][nextZ][nextY][nextX].pathCount != 0 {
 						visited = true
 						break
 					}
@@ -307,27 +354,27 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 			case origY != nextY:
 				allWall := true
 				allWallOrOneWay := true
-				for z := range f.depth {
+				for z := range f.depth0 {
 					if origY < nextY {
 						// There is a conflicted one-way passage.
-						if rooms[z][origY][origX].passageY == passageOneWayBackward {
+						if rooms[origW][z][origY][origX].passageY == passageOneWayBackward {
 							continue retry
 						}
-						if rooms[z][origY][origX].passageY != passageWall {
+						if rooms[origW][z][origY][origX].passageY != passageWall {
 							allWall = false
-							if rooms[z][origY][origX].passageY != passageOneWayForward {
+							if rooms[origW][z][origY][origX].passageY != passageOneWayForward {
 								allWallOrOneWay = false
 							}
 						}
 					}
 					if origY > nextY {
 						// There is a conflicted one-way passage.
-						if rooms[z][nextY][nextX].passageY == passageOneWayForward {
+						if rooms[origW][z][nextY][nextX].passageY == passageOneWayForward {
 							continue retry
 						}
-						if rooms[z][nextY][nextX].passageY != passageWall {
+						if rooms[origW][z][nextY][nextX].passageY != passageWall {
 							allWall = false
-							if rooms[z][nextY][nextX].passageY != passageOneWayBackward {
+							if rooms[origW][z][nextY][nextX].passageY != passageOneWayBackward {
 								allWallOrOneWay = false
 							}
 						}
@@ -341,7 +388,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 				if allWallOrOneWay {
 					// A branch must have a one-way passage.
 					// Just before the goal, the passage should be one-way so that branches are created more easily.
-					if isGoal(nextX, nextY, nextZ, rooms, count+1) {
+					if isGoal(nextX, nextY, nextZ, nextW, rooms, count+1) {
 						oneWay = true
 						goalReached = true
 						found = true
@@ -350,7 +397,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 				}
 				fallthrough
 			default:
-				if rooms[nextZ][nextY][nextX].pathCount != 0 {
+				if rooms[nextW][nextZ][nextY][nextX].pathCount != 0 {
 					visited = true
 				}
 			}
@@ -360,7 +407,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 				break
 			}
 
-			if isGoal(nextX, nextY, nextZ, rooms, count+1) {
+			if isGoal(nextX, nextY, nextZ, nextW, rooms, count+1) {
 				goalReached = true
 				found = true
 				break
@@ -378,76 +425,89 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 
 		switch {
 		case x < nextX:
-			rooms[z][y][x].passageX = passagePassable
+			rooms[w][z][y][x].passageX = passagePassable
 		case x > nextX:
-			rooms[z][y][nextX].passageX = passagePassable
+			rooms[w][z][y][nextX].passageX = passagePassable
 		case y < nextY:
 			if oneWay {
-				for z := range f.depth {
-					if z == nextZ {
-						rooms[z][y][x].passageY = passageOneWayForward
+				for z := range f.depth0 {
+					if z == nextZ && w == nextW {
+						rooms[w][z][y][x].passageY = passageOneWayForward
 						continue
 					}
-					if rooms[z][y][x].passageY == passageOneWayBackward {
+					if rooms[w][z][y][x].passageY == passageOneWayBackward {
 						panic("not reached")
 					}
-					if rooms[z][y][x].passageY == passagePassable {
+					if rooms[w][z][y][x].passageY == passagePassable {
 						panic("not reached")
 					}
 				}
 			} else {
-				for z := range f.depth {
-					if z == nextZ {
-						rooms[z][y][x].passageY = passagePassable
+				for z := range f.depth0 {
+					if z == nextZ && w == nextW {
+						rooms[w][z][y][x].passageY = passagePassable
+						continue
 					}
-					if rooms[z][y][x].passageY == passageOneWayForward {
+					if rooms[w][z][y][x].passageY == passageOneWayForward {
 						panic("not reached")
 					}
-					if rooms[z][y][x].passageY == passageOneWayBackward {
+					if rooms[w][z][y][x].passageY == passageOneWayBackward {
 						panic("not reached")
 					}
 				}
 			}
 		case y > nextY:
 			if oneWay {
-				for z := range f.depth {
-					if z == nextZ {
-						rooms[z][nextY][x].passageY = passageOneWayBackward
+				for z := range f.depth0 {
+					if z == nextZ && w == nextW {
+						rooms[w][z][nextY][x].passageY = passageOneWayBackward
 						continue
 					}
-					if rooms[z][nextY][x].passageY == passageOneWayForward {
+					if rooms[w][z][nextY][x].passageY == passageOneWayForward {
 						panic("not reached")
 					}
-					if rooms[z][nextY][x].passageY == passagePassable {
+					if rooms[w][z][nextY][x].passageY == passagePassable {
 						panic("not reached")
 					}
 				}
 			} else {
-				for z := range f.depth {
-					if z == nextZ {
-						rooms[z][nextY][x].passageY = passagePassable
+				for z := range f.depth0 {
+					if z == nextZ && w == nextW {
+						rooms[w][z][nextY][x].passageY = passagePassable
+						continue
 					}
-					if rooms[z][nextY][x].passageY == passageOneWayForward {
+					if rooms[w][z][nextY][x].passageY == passageOneWayForward {
 						panic("not reached")
 					}
-					if rooms[z][nextY][x].passageY == passageOneWayBackward {
+					if rooms[w][z][nextY][x].passageY == passageOneWayBackward {
 						panic("not reached")
 					}
 				}
 			}
 		case z != nextZ:
-			for z := 0; z < f.depth-1; z++ {
-				rooms[z][y][x].passageZ = passagePassable
+			// The last Z's passage is always wall
+			for z := range f.depth0 - 1 {
+				rooms[w][z][y][x].passageZ = passagePassable
+			}
+		case w != nextW:
+			// The last W's passage is always wall
+			for w := range f.depth1 - 1 {
+				rooms[w][z][y][x].passageW = passagePassable
 			}
 		}
 
 		if z != nextZ {
 			origZ := z
-			for z := range f.depth {
-				rooms[z][nextY][nextX].pathCount = count + abs(origZ-z)
+			for z := range f.depth0 {
+				rooms[nextW][z][nextY][nextX].pathCount = count + abs(origZ-z)
+			}
+		} else if w != nextW {
+			origW := w
+			for w := range f.depth1 {
+				rooms[w][nextZ][nextY][nextX].pathCount = count + abs(origW-w)
 			}
 		} else {
-			rooms[nextZ][nextY][nextX].pathCount = count + 1
+			rooms[nextW][nextZ][nextY][nextX].pathCount = count + 1
 		}
 		count++
 
@@ -455,7 +515,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 			break
 		}
 
-		x, y, z = nextX, nextY, nextZ
+		x, y, z, w = nextX, nextY, nextZ, nextW
 	}
 
 	if !oneWayExists {
@@ -464,16 +524,18 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 	return rooms
 }
 
-func (f *FieldData) areEnoughRoomsVisited(rooms [][][]room) bool {
+func (f *FieldData) areEnoughRoomsVisited(rooms [][][][]room) bool {
 	var visited int
-	threshold := (f.width * f.height * f.depth) * 8 / 10
-	for z := range f.depth {
-		for y := range f.height {
-			for x := range f.width {
-				if rooms[z][y][x].pathCount > 0 {
-					visited++
-					if visited >= threshold {
-						return true
+	threshold := (f.width * f.height * f.depth0 * f.depth1) * 8 / 10
+	for w := range f.depth1 {
+		for z := range f.depth0 {
+			for y := range f.height {
+				for x := range f.width {
+					if rooms[w][z][y][x].pathCount > 0 {
+						visited++
+						if visited >= threshold {
+							return true
+						}
 					}
 				}
 			}
@@ -492,37 +554,55 @@ func abs(x int) int {
 const GridSize = 16
 
 const (
-	roomXGridCount = 6
 	roomYGridCount = 3
 )
 
-func (f *FieldData) setTiles(rooms [][][]room) {
+func (f *FieldData) roomXGridCount() int {
+	switch f.depth1 {
+	case 1:
+		return 6
+	case 2:
+		return 8
+	default:
+		panic("not reached")
+	}
+}
+
+func (f *FieldData) setTiles(rooms [][][][]room) {
+	roomXGridCount := f.roomXGridCount()
+
 	width := f.width*roomXGridCount + 1
 	height := f.height*roomYGridCount + 2
 
 	f.tiles = make([][]tile, height)
 	for y := range f.tiles {
 		f.tiles[y] = make([]tile, width)
-	}
-
-	for y := range f.tiles {
 		for x := range f.tiles[y] {
-			f.tiles[y][x] = tile{}
+			f.tiles[y][x].walls = make([]bool, f.depth1)
+			f.tiles[y][x].ladders = make([]bool, f.depth1)
+			f.tiles[y][x].switches = make([]bool, f.depth1)
+			f.tiles[y][x].wallColors = make([]int, f.depth1)
+			f.tiles[y][x].ladderColors = make([]int, f.depth1)
 		}
 	}
 
 	// Set the outside walls.
 	for x := range f.tiles[0] {
-		f.tiles[0][x].wall = true
-
+		for i := range f.tiles[0][x].walls {
+			f.tiles[0][x].walls[i] = true
+		}
 	}
 	for y := range f.tiles {
-		f.tiles[y][0].wall = true
+		for i := range f.tiles[y][0].walls {
+			f.tiles[y][0].walls[i] = true
+		}
 	}
-	f.tiles[height-1][width-1].wall = true
+	for i := range f.tiles[height-1][width-1].walls {
+		f.tiles[height-1][width-1].walls[i] = true
+	}
 
 	// Set the goal.
-	f.tiles[height-1][width-6].goal = true
+	f.tiles[height-1][width-roomXGridCount-1].goal = true
 
 	for y := range f.height {
 		for x := range f.width {
@@ -531,122 +611,186 @@ func (f *FieldData) setTiles(rooms [][][]room) {
 	}
 }
 
-func (f *FieldData) setTilesForRoom(rooms [][][]room, roomX, roomY int) {
+func (f *FieldData) setTilesForRoom(rooms [][][][]room, roomX, roomY int) {
 	const (
 		edgeOffsetX = 1
 		edgeOffsetY = 1
 	)
+	roomXGridCount := f.roomXGridCount()
 
-	allPassableOrOneWayX := true
-	allPassableOrOneWayY := true
-	allWallX := true
-	allWallY := true
-	for z := range f.depth {
-		room := rooms[z][roomY][roomX]
-		if room.passageX != passagePassable && room.passageX != passageOneWayForward && room.passageX != passageOneWayBackward {
-			allPassableOrOneWayX = false
-		}
-		if room.passageX != passageWall {
-			allWallX = false
-		}
-		if room.passageY != passagePassable && room.passageY != passageOneWayForward && room.passageY != passageOneWayBackward {
-			allPassableOrOneWayY = false
-		}
-		if room.passageY != passageWall {
-			allWallY = false
-		}
-	}
-	if allWallX {
-		for j := range roomYGridCount - 1 {
-			x := roomX*roomXGridCount + roomXGridCount - 1 + edgeOffsetX
-			y := roomY*roomYGridCount + j + edgeOffsetY
-			f.tiles[y][x].wall = true
-		}
-	} else if !allPassableOrOneWayX {
-		for z := range f.depth {
-			room := rooms[z][roomY][roomX]
-			if room.passageX == passageWall {
-				continue
+	// Add walls.
+	colors, oks := f.wallColors(rooms, roomX, roomY)
+	for j := range roomYGridCount - 1 {
+		x := roomX*roomXGridCount + roomXGridCount - 1 + edgeOffsetX
+		x -= f.depth1 - 1
+		y := roomY*roomYGridCount + j + edgeOffsetY
+		allNonColorWall := true
+		for w := range f.depth1 {
+			if !oks[w] {
+				allNonColorWall = false
+				break
 			}
-			for j := range roomYGridCount - 1 {
-				x := roomX*roomXGridCount + roomXGridCount - 1 + edgeOffsetX
-				y := roomY*roomYGridCount + j + edgeOffsetY
-				f.tiles[y][x].wall = true
-				f.tiles[y][x].color = z + 1
+			if colors[w] != 0 {
+				allNonColorWall = false
+				break
+			}
+		}
+		if allNonColorWall {
+			for w := range f.depth1 {
+				f.tiles[y][x+(f.depth1-1)].walls[w] = true
+			}
+		} else {
+			for w := range f.depth1 {
+				if !oks[w] {
+					continue
+				}
+				f.tiles[y][x+w].walls[w] = true
+				f.tiles[y][x+w].wallColors[w] = colors[w]
 			}
 		}
 	}
 
+	// Add a ceiling.
 	for i := range roomXGridCount {
 		x := roomX*roomXGridCount + i + edgeOffsetX
 		y := (roomY+1)*roomYGridCount - 1 + edgeOffsetY
-		f.tiles[y][x].wall = true
+		for w := range f.depth1 {
+			f.tiles[y][x].walls[w] = true
+		}
 	}
-	if !allWallY {
-		x := roomX*roomXGridCount + 1 + (roomY % 2) + edgeOffsetX
-		if allPassableOrOneWayY {
-			wallY := passageWall
-			// Check all the wallY are the same.
-			for z := range f.depth {
-				room := rooms[z][roomY][roomX]
-				if wallY == passageWall {
-					wallY = room.passageY
-					continue
-				}
-				if wallY != room.passageY {
-					panic("not reached")
-				}
+
+	// Add ladders.
+	passageYs := make([]passage, f.depth1)
+	for i := range passageYs {
+		passageYs[i] = passageWall
+	}
+	for w := range f.depth1 {
+		for z := range f.depth0 {
+			room := rooms[w][z][roomY][roomX]
+			if room.passageY == passageWall {
+				continue
 			}
-			for j := range roomYGridCount {
-				y := roomY*roomYGridCount + j + edgeOffsetY
-				f.tiles[y][x].ladder = true
-				if wallY == passageOneWayForward {
-					f.tiles[y][x].upward = true
-				}
-				if wallY == passageOneWayBackward {
-					f.tiles[y][x].downward = true
-				}
+			if passageYs[w] == passageWall {
+				passageYs[w] = room.passageY
+				continue
 			}
-		} else {
-			for z := range f.depth {
-				room := rooms[z][roomY][roomX]
-				if room.passageY == passageWall {
-					continue
-				}
-				for j := range roomYGridCount {
-					y := roomY*roomYGridCount + j + edgeOffsetY
-					f.tiles[y][x].ladder = true
-					f.tiles[y][x].color = z + 1
-					if room.passageY == passageOneWayForward {
-						f.tiles[y][x].upward = true
-					}
-					if room.passageY == passageOneWayBackward {
-						f.tiles[y][x].downward = true
-					}
-				}
+			if passageYs[w] != room.passageY {
+				panic("not reached")
+			}
+			passageYs[w] = room.passageY
+		}
+	}
+	colors, oks = f.ladderColors(rooms, roomX, roomY)
+	for j := range roomYGridCount {
+		y := roomY*roomYGridCount + j + edgeOffsetY
+		for w := range f.depth1 {
+			if !oks[w] {
+				continue
+			}
+			x := roomX*roomXGridCount + 1 + ((roomY + w) % 2) + edgeOffsetX
+			f.tiles[y][x].ladders[w] = true
+			f.tiles[y][x].ladderColors[w] = colors[w]
+			if passageYs[w] == passageOneWayForward {
+				f.tiles[y][x].upward = true
+			}
+			if passageYs[w] == passageOneWayBackward {
+				f.tiles[y][x].downward = true
 			}
 		}
 	}
 
-	if rooms[0][roomY][roomX].passageZ != passageWall {
-		x := roomX*roomXGridCount + 3 + edgeOffsetX
+	// Add switches.
+	for w := range f.depth1 {
+		if rooms[w][0][roomY][roomX].passageZ != passageWall {
+			x := roomX*roomXGridCount + 3 + w + edgeOffsetX
+			y := roomY*roomYGridCount + edgeOffsetY
+			f.tiles[y][x].switches[w] = true
+		}
+	}
+
+	// Add doors.
+	if color, ok := f.doorColor(rooms, roomX, roomY); ok {
+		x := roomX*roomXGridCount + 5 + edgeOffsetX
 		y := roomY*roomYGridCount + edgeOffsetY
-		f.tiles[y][x].sw = true
+		f.tiles[y][x].door = true
+		f.tiles[y][x].doorColor = color
+		f.tiles[y+1][x].doorUpper = true
+		f.tiles[y+1][x].doorColor = color
 	}
 }
 
-func (f *FieldData) hasSwitch(x, y int) bool {
-	return f.tiles[y][x].sw
+func (f *FieldData) wallColors(rooms [][][][]room, roomX, roomY int) (colors []int, oks []bool) {
+	colors = make([]int, f.depth1)
+	oks = make([]bool, f.depth1)
+	for w := range f.depth1 {
+		x0 := rooms[w][0][roomY][roomX].passageX == passageWall
+		x1 := rooms[w][1][roomY][roomX].passageX == passageWall
+		if !x0 && x1 {
+			colors[w] = 1 // TODO: Add (w * f.depth0)?
+		}
+		if x0 && !x1 {
+			colors[w] = 2
+		}
+		if x0 || x1 {
+			oks[w] = true
+		}
+	}
+	return
 }
 
-func (f *FieldData) passable(nextX, nextY int, prevX, prevY int, currentDepth int) bool {
+func (f *FieldData) ladderColors(rooms [][][][]room, roomX, roomY int) (colors []int, oks []bool) {
+	colors = make([]int, f.depth1)
+	oks = make([]bool, f.depth1)
+	for w := range f.depth1 {
+		y0 := rooms[w][0][roomY][roomX].passageY != passageWall
+		y1 := rooms[w][1][roomY][roomX].passageY != passageWall
+		if y0 && !y1 {
+			colors[w] = 1
+		}
+		if !y0 && y1 {
+			colors[w] = 2
+		}
+		if y0 || y1 {
+			oks[w] = true
+		}
+	}
+	return
+}
+
+func (f *FieldData) doorColor(rooms [][][][]room, roomX, roomY int) (color int, ok bool) {
+	w0 := rooms[0][0][roomY][roomX].passageW != passageWall
+	w1 := rooms[0][1][roomY][roomX].passageW != passageWall
+	if w0 && !w1 {
+		color = 1
+	}
+	if !w0 && w1 {
+		color = 2
+	}
+	if w0 || w1 {
+		ok = true
+	}
+	return
+}
+
+func (f *FieldData) hasSwitch(x, y int, currentDepth1 int) bool {
+	return f.tiles[y][x].switches[currentDepth1]
+}
+
+func (f *FieldData) hasDoor(x, y int, currentDepth0 int) bool {
+	if !f.tiles[y][x].door {
+		return false
+	}
+	return f.tiles[y][x].doorColor == 0 || f.tiles[y][x].doorColor-1 == currentDepth0
+}
+
+func (f *FieldData) passable(nextX, nextY int, prevX, prevY int, currentDepth0 int, currentDepth1 int) bool {
 	if nextY < 0 || len(f.tiles) <= nextY || nextX < 0 || len(f.tiles[nextY]) <= nextX {
 		return false
 	}
-	if !f.canBeInTile(nextX, nextY, currentDepth) {
+	if !f.canBeInTile(nextX, nextY, currentDepth0, currentDepth1) {
 		return false
 	}
-	if !f.canStandOnTile(nextX, nextY-1, currentDepth) {
+	if !f.canStandOnTile(nextX, nextY-1, currentDepth0, currentDepth1) {
 		return false
 	}
 	if nextY > prevY && !f.canGoUp(nextX, nextY) {
@@ -658,36 +802,40 @@ func (f *FieldData) passable(nextX, nextY int, prevX, prevY int, currentDepth in
 	return true
 }
 
-func (f *FieldData) canBeInTile(x, y int, currentDepth int) bool {
+func (f *FieldData) canBeInTile(x, y int, currentDepth0 int, currentDepth1 int) bool {
 	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
 		return false
 	}
 	t := f.tiles[y][x]
-	if t.ladder {
-		if t.color == 0 || t.color-1 == currentDepth {
+	// A ladder is passable.
+	if t.ladders[currentDepth1] {
+		if t.ladderColors[currentDepth1] == 0 || t.ladderColors[currentDepth1]-1 == currentDepth0 {
 			return true
 		}
 	}
-	if t.wall {
-		if t.color == 0 || t.color-1 != currentDepth {
+	// A wall is not passable.
+	if t.walls[currentDepth1] {
+		if t.wallColors[currentDepth1] == 0 || (t.wallColors[currentDepth1]-1 != currentDepth0) {
 			return false
 		}
 	}
 	return true
 }
 
-func (f *FieldData) canStandOnTile(x, y int, currentDepth int) bool {
+func (f *FieldData) canStandOnTile(x, y int, currentDepth0 int, currentDepth1 int) bool {
 	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
 		return false
 	}
 	t := f.tiles[y][x]
-	if t.ladder {
-		if t.color == 0 || t.color-1 == currentDepth {
+	// A player can stand on a ladder.
+	if t.ladders[currentDepth1] {
+		if t.ladderColors[currentDepth1] == 0 || t.ladderColors[currentDepth1]-1 == currentDepth0 {
 			return true
 		}
 	}
-	if t.wall {
-		if t.color == 0 || t.color-1 != currentDepth {
+	// A player can stand on a wall.
+	if t.walls[currentDepth1] {
+		if t.wallColors[currentDepth1] == 0 || (t.wallColors[currentDepth1]-1 != currentDepth0) {
 			return true
 		}
 	}
@@ -722,7 +870,7 @@ func (f *FieldData) floorCount() int {
 	return f.height + 1
 }
 
-func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDepth int) {
+func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDepth0, currentDepth1 int) {
 	for y := range f.tiles {
 		for x := range f.tiles[y] {
 			dx := x*GridSize + offsetX
@@ -735,58 +883,100 @@ func (f *FieldData) Draw(screen *ebiten.Image, offsetX, offsetY int, currentDept
 			op := &ebiten.DrawImageOptions{}
 			op.GeoM.Translate(float64(dx), float64(dy))
 
+			const transparent = 0.25
 			t := f.tiles[y][x]
-			if t.wall {
-				img := f.wallImage
-				if t.color != 0 && !t.ladder {
-					d := t.color - 1
-					if currentDepth == d {
-						img = f.colorPassableWallImages[f.colorPalette[d]]
-					} else {
-						img = f.colorUnpassableWallImages[f.colorPalette[d]]
-					}
-				}
-				screen.DrawImage(img, op)
-			}
-			if t.ladder {
-				d := t.color - 1
-				if !t.upward && !t.downward {
-					img := f.ladderImage
-					if t.color != 0 {
-						if currentDepth == d {
-							img = f.colorPassableLadderImages[f.colorPalette[d]]
+			for w := range f.depth1 {
+				if t.walls[w] {
+					img := f.wallImage
+					if t.wallColors[w] != 0 {
+						c := t.wallColors[w] - 1
+						if currentDepth0 == c {
+							img = f.colorPassableWallImages[f.colorPalette[c]]
 						} else {
-							img = f.colorUnpassableLadderImages[f.colorPalette[d]]
+							img = f.colorUnpassableWallImages[f.colorPalette[c]]
 						}
+					}
+					op.ColorScale = ebiten.ColorScale{}
+					if currentDepth1 != w {
+						op.ColorScale.ScaleAlpha(transparent)
 					}
 					screen.DrawImage(img, op)
 				}
-				if t.upward {
-					if t.color == 0 {
-						screen.DrawImage(f.upwardImage, op)
-					} else if currentDepth == d {
-						screen.DrawImage(f.colorUpwardImage[f.colorPalette[d]], op)
-					} else {
-						screen.DrawImage(f.colorUpwardDisabledImage[f.colorPalette[d]], op)
+			}
+			for w := range f.depth1 {
+				if t.ladders[w] {
+					c := -1
+					idx := -1
+					if t.ladderColors[w] != 0 {
+						c = t.ladderColors[w] - 1
+						idx = f.colorPalette[c]
 					}
-				}
-				if t.downward {
-					if t.color == 0 {
-						screen.DrawImage(f.downwardImage, op)
-					} else if currentDepth == d {
-						screen.DrawImage(f.colorDownwardImage[f.colorPalette[d]], op)
-					} else {
-						screen.DrawImage(f.colorDownwardDisabledImage[f.colorPalette[d]], op)
+					var img *ebiten.Image
+					switch {
+					case !t.upward && !t.downward:
+						if c < 0 {
+							img = f.ladderImage
+						} else if currentDepth0 == c {
+							img = f.colorPassableLadderImages[idx]
+						} else {
+							img = f.colorUnpassableLadderImages[idx]
+						}
+					case t.upward:
+						if c < 0 {
+							img = f.upwardImage
+						} else if currentDepth0 == c {
+							img = f.colorUpwardImage[idx]
+						} else {
+							img = f.colorUpwardDisabledImage[idx]
+						}
+					case t.downward:
+						if c < 0 {
+							img = f.downwardImage
+						} else if currentDepth0 == c {
+							img = f.colorDownwardImage[idx]
+						} else {
+							img = f.colorDownwardDisabledImage[idx]
+						}
 					}
+					op.ColorScale = ebiten.ColorScale{}
+					if currentDepth1 != w {
+						op.ColorScale.ScaleAlpha(transparent)
+					}
+					screen.DrawImage(img, op)
 				}
 			}
-			if t.sw {
-				switchImage := f.switchImages[f.colorPalette[currentDepth]]
-				screen.DrawImage(switchImage, op)
+			for w := range f.depth1 {
+				if t.switches[w] {
+					switchImage := f.switchImages[f.colorPalette[currentDepth0]]
+					op.ColorScale = ebiten.ColorScale{}
+					if currentDepth1 != w {
+						op.ColorScale.ScaleAlpha(transparent)
+					}
+					screen.DrawImage(switchImage, op)
+				}
+			}
+			if t.doorUpper {
+				img := f.doorImage
+				if t.doorColor != 0 {
+					c := t.doorColor - 1
+					if c == currentDepth0 {
+						img = f.colorDoorImages[f.colorPalette[c]]
+					} else {
+						img = f.colorDoorDisabledImages[f.colorPalette[c]]
+					}
+				}
+				op.ColorScale = ebiten.ColorScale{}
+				screen.DrawImage(img, op)
 			}
 			if t.goal {
 				screen.DrawImage(f.goalImage, op)
 			}
 		}
 	}
+}
+
+var doorImage = ebiten.NewImage(16, 16)
+
+func init() {
+	doorImage.Fill(color.White)
 }
