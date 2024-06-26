@@ -91,16 +91,16 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 		height = 5
 		depth = 2
 	case LevelNormal:
-		width = 10
-		height = 10
+		width = 8
+		height = 8
 		depth = 2
 	case LevelHard:
-		width = 15
-		height = 15
+		width = 11
+		height = 11
 		depth = 2
 	case LevelSugoi:
-		width = 20
-		height = 20
+		width = 14
+		height = 14
 		depth = 2 // TODO: Add more dimensions.
 	default:
 		panic("not reached")
