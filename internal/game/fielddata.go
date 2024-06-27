@@ -441,15 +441,15 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal f
 			}
 		}
 
-		count++
 		if z != nextZ {
 			origZ := z
 			for z := range f.depth {
 				rooms[z][nextY][nextX].pathCount = count + abs(origZ-z)
 			}
 		} else {
-			rooms[nextZ][nextY][nextX].pathCount = count
+			rooms[nextZ][nextY][nextX].pathCount = count + 1
 		}
+		count++
 
 		if goalReached {
 			break
