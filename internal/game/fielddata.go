@@ -200,6 +200,7 @@ func (f *FieldData) generateWalls() [][][]room {
 	rooms[f.goalZ][f.goalY][f.goalX].passageY = passagePassable
 
 	// Add branches.
+	var count int
 	for !f.areEnoughRoomsVisited(rooms) {
 		var startX, startY, startZ int
 		for {
@@ -225,9 +226,14 @@ func (f *FieldData) generateWalls() [][][]room {
 			return true
 		})
 		if newRooms == nil {
+			count++
+			if count > 1000 {
+				return nil
+			}
 			continue
 		}
 		rooms = newRooms
+		count = 0
 	}
 
 	return rooms
