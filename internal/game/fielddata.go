@@ -127,7 +127,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 
 	var rooms [][][]room
 	for {
-		if rooms = f.generateWalls(); rooms != nil {
+		if rooms = f.generateRooms(); rooms != nil {
 			break
 		}
 	}
@@ -178,7 +178,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	return f
 }
 
-func (f *FieldData) generateWalls() [][][]room {
+func (f *FieldData) generateRooms() [][][]room {
 	rooms := make([][][]room, f.depth)
 	for z := range f.depth {
 		rooms[z] = make([][]room, f.height)
