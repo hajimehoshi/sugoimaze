@@ -88,8 +88,8 @@ type FieldData struct {
 
 func NewFieldData(difficulty Difficulty) *FieldData {
 	var width int
-	var depth int
 	var height int
+	var depth int
 
 	switch difficulty {
 	case LevelEasy:
