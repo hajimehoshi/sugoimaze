@@ -13,6 +13,7 @@ import (
 )
 
 type Field struct {
+	difficulty    Difficulty
 	data          *FieldData
 	playerX       int
 	playerY       int
@@ -27,9 +28,10 @@ type Field struct {
 
 func NewField(difficulty Difficulty) *Field {
 	f := &Field{
-		data:    NewFieldData(difficulty),
-		playerX: 1,
-		playerY: 1,
+		difficulty: difficulty,
+		data:       NewFieldData(difficulty),
+		playerX:    1,
+		playerY:    1,
 	}
 
 	f.playerImage = f.data.tilesImage.SubImage(image.Rect(1*GridSize, 0*GridSize, 2*GridSize, 1*GridSize)).(*ebiten.Image)
@@ -135,5 +137,7 @@ func (f *Field) Draw(screen *ebiten.Image) {
 	op.GeoM.Translate(float64(offsetX), float64(offsetY))
 	screen.DrawImage(f.playerImage, op)
 
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("%dF / %dF", f.data.floorNumber(f.playerY), f.data.floorCount()))
+	msg := "Difficulty: " + f.difficulty.String()
+	msg += "\n" + fmt.Sprintf("%dF / %dF", f.data.floorNumber(f.playerY), f.data.floorCount())
+	ebitenutil.DebugPrint(screen, msg)
 }

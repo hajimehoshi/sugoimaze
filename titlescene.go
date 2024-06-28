@@ -48,13 +48,13 @@ func (t *TitleScene) Update(game GameContext) error {
 
 func (t *TitleScene) Draw(screen *ebiten.Image) {
 	msg := "The Sugoi Maze Building\n\n"
-	for i, level := range []string{"Easy", "Normal", "Hard", "Sugoi"} {
+	for i, difficulty := range []gamepkg.Difficulty{gamepkg.LevelEasy, gamepkg.LevelNormal, gamepkg.LevelHard, gamepkg.LevelSugoi} {
 		if i == t.cursorIndex {
-			msg += "-> "
+			msg += " -> "
 		} else {
-			msg += "   "
+			msg += "    "
 		}
-		msg += level + "\n"
+		msg += difficulty.String() + "\n"
 	}
 	ebitenutil.DebugPrint(screen, msg)
 }

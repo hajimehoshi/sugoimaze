@@ -26,6 +26,21 @@ const (
 	LevelSugoi
 )
 
+func (d Difficulty) String() string {
+	switch d {
+	case LevelEasy:
+		return "Easy"
+	case LevelNormal:
+		return "Normal"
+	case LevelHard:
+		return "Hard"
+	case LevelSugoi:
+		return "Sugoi"
+	default:
+		panic("not reached")
+	}
+}
+
 type passage int
 
 const (
