@@ -16,10 +16,10 @@ type TitleScene struct {
 }
 
 func (t *TitleScene) Update(game GameContext) error {
-	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyDown) || inpututil.IsKeyJustPressed(ebiten.KeyS) {
 		t.cursorIndex++
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyW) {
 		t.cursorIndex--
 	}
 	if t.cursorIndex < 0 {
