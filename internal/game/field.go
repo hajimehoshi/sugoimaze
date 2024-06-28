@@ -106,7 +106,7 @@ func (f *Field) Update() {
 	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
 		nextX++
 	}
-	if !f.data.passable(nextX, nextY, prevX, prevY, f.currentDepth0, f.currentDepth1) {
+	if !f.data.passable(nextX, nextY, prevY, f.currentDepth0, f.currentDepth1) {
 		return
 	}
 	if nextX > f.playerX {

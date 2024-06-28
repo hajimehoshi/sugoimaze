@@ -783,7 +783,7 @@ func (f *FieldData) hasDoor(x, y int, currentDepth0 int) bool {
 	return f.tiles[y][x].doorColor == 0 || f.tiles[y][x].doorColor-1 == currentDepth0
 }
 
-func (f *FieldData) passable(nextX, nextY int, prevX, prevY int, currentDepth0 int, currentDepth1 int) bool {
+func (f *FieldData) passable(nextX, nextY int, prevY int, currentDepth0 int, currentDepth1 int) bool {
 	if nextY < 0 || len(f.tiles) <= nextY || nextX < 0 || len(f.tiles[nextY]) <= nextX {
 		return false
 	}
@@ -793,10 +793,10 @@ func (f *FieldData) passable(nextX, nextY int, prevX, prevY int, currentDepth0 i
 	if !f.canStandOnTile(nextX, nextY-1, currentDepth0, currentDepth1) {
 		return false
 	}
-	if nextY > prevY && !f.canGoUp(nextX, nextY) {
+	if nextY > prevY && !f.canGoUp(nextX, nextY, currentDepth1) {
 		return false
 	}
-	if nextY < prevY && !f.canGoDown(nextX, nextY) {
+	if nextY < prevY && !f.canGoDown(nextX, nextY, currentDepth1) {
 		return false
 	}
 	return true
@@ -807,7 +807,7 @@ func (f *FieldData) canBeInTile(x, y int, currentDepth0 int, currentDepth1 int) 
 		return false
 	}
 	t := f.tiles[y][x]
-	// A ladder is passable.
+	// A ladder is passable, even though this is a wall.
 	if t.ladders[currentDepth1] {
 		if t.ladderColors[currentDepth1] == 0 || t.ladderColors[currentDepth1]-1 == currentDepth0 {
 			return true
@@ -842,19 +842,31 @@ func (f *FieldData) canStandOnTile(x, y int, currentDepth0 int, currentDepth1 in
 	return false
 }
 
-func (f *FieldData) canGoUp(x, y int) bool {
+func (f *FieldData) canGoUp(x, y int, currentDepth1 int) bool {
 	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
 		return false
 	}
 	t := f.tiles[y][x]
+	if !t.ladders[currentDepth1] {
+		return true
+	}
+	if t.ladderColors[currentDepth1] > 0 && t.ladderColors[currentDepth1]-1 != currentDepth1 {
+		return true
+	}
 	return !t.downward
 }
 
-func (f *FieldData) canGoDown(x, y int) bool {
+func (f *FieldData) canGoDown(x, y int, currentDepth1 int) bool {
 	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
 		return false
 	}
 	t := f.tiles[y][x]
+	if !t.ladders[currentDepth1] {
+		return true
+	}
+	if t.ladderColors[currentDepth1] > 0 && t.ladderColors[currentDepth1]-1 != currentDepth1 {
+		return true
+	}
 	return !t.upward
 }
 
