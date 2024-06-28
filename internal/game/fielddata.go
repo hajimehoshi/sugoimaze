@@ -73,7 +73,7 @@ type FieldData struct {
 	goalZ  int
 	goalW  int
 
-	colorPalette [4]int
+	colorPalette [2]int
 
 	tiles [][]tile
 
@@ -145,7 +145,7 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 		goalZ:  depth0 - 1,
 		goalW:  depth1 - 1,
 	}
-	copy(f.colorPalette[:], rand.Perm(4))
+	f.colorPalette = [2]int{1, 3}
 
 	var rooms [][][][]room
 	for {
