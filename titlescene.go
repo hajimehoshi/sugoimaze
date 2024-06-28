@@ -8,7 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
-	gamepkg "github.com/hajimehoshi/ebitenginegamejam2024/internal/game"
+	gamepkg "github.com/hajimehoshi/sugoimaze/internal/game"
 )
 
 type TitleScene struct {

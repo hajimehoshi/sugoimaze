@@ -11,7 +11,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
-	game "github.com/hajimehoshi/ebitenginegamejam2024/internal/game"
+	game "github.com/hajimehoshi/sugoimaze/internal/game"
 )
 
 type GameScene struct {

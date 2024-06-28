@@ -1,4 +1,4 @@
-module github.com/hajimehoshi/ebitenginegamejam2024
+module github.com/hajimehoshi/sugoimaze
 
 go 1.22.4
 

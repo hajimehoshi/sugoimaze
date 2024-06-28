@@ -9,7 +9,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/hajimehoshi/ebitenginegamejam2024/internal/game"
+	"github.com/hajimehoshi/sugoimaze/internal/game"
 )
 
 type GameContext interface {
