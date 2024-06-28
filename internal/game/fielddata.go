@@ -242,9 +242,9 @@ func (f *FieldData) generateRooms() [][][]room {
 func (f *FieldData) tryAddPathWithOneWay(rooms [][][]room, x, y, z int, isGoal func(x, y, z int, rooms [][][]room, count int) bool) [][][]room {
 	// Clone rooms.
 	origRooms := rooms
-	rooms = append([][][]room{}, origRooms...)
+	rooms = make([][][]room, len(origRooms))
 	for z := range f.depth {
-		rooms[z] = append([][]room{}, origRooms[z]...)
+		rooms[z] = make([][]room, len(origRooms[z]))
 		for y := range f.height {
 			rooms[z][y] = append([]room{}, origRooms[z][y]...)
 		}
