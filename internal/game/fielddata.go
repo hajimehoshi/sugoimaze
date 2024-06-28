@@ -54,11 +54,11 @@ const (
 )
 
 type room struct {
-	passageX  passage
-	passageY  passage
-	passageZ  passage
-	passageW  passage
-	pathCount int
+	passageX passage
+	passageY passage
+	passageZ passage
+	passageW passage
+	progress int
 }
 
 type tile struct {
@@ -244,7 +244,7 @@ func (f *FieldData) generateRooms() [][][][]room {
 
 	// Generate the correct path.
 	x, y, z, w := f.startX, f.startY, f.startZ, f.startW
-	rooms[w][z][y][x].pathCount = 1
+	rooms[w][z][y][x].progress = 1
 	newRooms := f.tryAddPathWithOneWay(rooms, x, y, z, w, func(x, y, z, w int, rooms [][][][]room, count int) bool {
 		return x == f.goalX && y == f.goalY && z == f.goalZ && w == f.goalW
 	})
@@ -260,22 +260,22 @@ func (f *FieldData) generateRooms() [][][][]room {
 		var startX, startY, startZ, startW int
 		for {
 			startX, startY, startZ, startW = rand.IntN(f.width), rand.IntN(f.height), rand.IntN(f.depth0), rand.IntN(f.depth1)
-			if rooms[startW][startZ][startY][startX].pathCount != 0 {
+			if rooms[startW][startZ][startY][startX].progress != 0 {
 				break
 			}
 		}
-		startCount := rooms[startW][startZ][startY][startX].pathCount
+		startCount := rooms[startW][startZ][startY][startX].progress
 		newRooms := f.tryAddPathWithOneWay(rooms, startX, startY, startZ, startW, func(x, y, z, w int, rooms [][][][]room, count int) bool {
 			if x == startX && y == startY && z == startZ && w == startW {
 				return false
 			}
-			if rooms[w][z][y][x].pathCount == 0 {
+			if rooms[w][z][y][x].progress == 0 {
 				return false
 			}
 			// A branch must not be a shortcut.
 			// Also, a good branch should go back to a position close to the start position.
 			// Multiply a constant to make better branches.
-			if startCount <= rooms[w][z][y][x].pathCount*5/4 {
+			if startCount <= rooms[w][z][y][x].progress*5/4 {
 				return false
 			}
 			return true
@@ -310,7 +310,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][][]room, x, y, z, w int, isG
 
 	var oneWayExists bool
 
-	count := rooms[w][z][y][x].pathCount
+	count := rooms[w][z][y][x].progress
 
 	for !isGoal(x, y, z, w, rooms, count) {
 		var goalReached bool
@@ -359,7 +359,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][][]room, x, y, z, w int, isG
 					if z == origZ {
 						continue
 					}
-					if rooms[nextW][nextZ][nextY][nextX].pathCount != 0 {
+					if rooms[nextW][nextZ][nextY][nextX].progress != 0 {
 						visited = true
 						break
 					}
@@ -369,7 +369,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][][]room, x, y, z, w int, isG
 					if w == origW {
 						continue
 					}
-					if rooms[nextW][nextZ][nextY][nextX].pathCount != 0 {
+					if rooms[nextW][nextZ][nextY][nextX].progress != 0 {
 						visited = true
 						break
 					}
@@ -420,7 +420,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][][]room, x, y, z, w int, isG
 				}
 				fallthrough
 			default:
-				if rooms[nextW][nextZ][nextY][nextX].pathCount != 0 {
+				if rooms[nextW][nextZ][nextY][nextX].progress != 0 {
 					visited = true
 				}
 			}
@@ -522,15 +522,15 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][][]room, x, y, z, w int, isG
 		if z != nextZ {
 			origZ := z
 			for z := range f.depth0 {
-				rooms[nextW][z][nextY][nextX].pathCount = count + abs(origZ-z)
+				rooms[nextW][z][nextY][nextX].progress = count + abs(origZ-z)
 			}
 		} else if w != nextW {
 			origW := w
 			for w := range f.depth1 {
-				rooms[w][nextZ][nextY][nextX].pathCount = count + abs(origW-w)
+				rooms[w][nextZ][nextY][nextX].progress = count + abs(origW-w)
 			}
 		} else {
-			rooms[nextW][nextZ][nextY][nextX].pathCount = count + 1
+			rooms[nextW][nextZ][nextY][nextX].progress = count + 1
 		}
 		count++
 
@@ -554,7 +554,7 @@ func (f *FieldData) areEnoughRoomsVisited(rooms [][][][]room) bool {
 		for z := range f.depth0 {
 			for y := range f.height {
 				for x := range f.width {
-					if rooms[w][z][y][x].pathCount > 0 {
+					if rooms[w][z][y][x].progress > 0 {
 						visited++
 						if visited >= threshold {
 							return true
