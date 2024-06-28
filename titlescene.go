@@ -56,5 +56,10 @@ func (t *TitleScene) Draw(screen *ebiten.Image) {
 		}
 		msg += difficulty.String() + "\n"
 	}
+	msg += `
+Controls:
+  - Arrow keys, WASD: Move
+  - Space, Enter:     Toggle switches, etc.
+`
 	ebitenutil.DebugPrint(screen, msg)
 }
