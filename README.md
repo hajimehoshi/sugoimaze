@@ -8,3 +8,11 @@ Guide the Gopher to reach the rooftop of the Sugoi Building. If you can clear th
 
 - Arrow keys, WASD: Move
 - Space, Enter: Toggle switches, etc.
+
+## Screenshots
+
+![1](./screenshot1.png)
+
+![2](./screenshot2.png)
+
+![3](./screenshot3.png)
