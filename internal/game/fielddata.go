@@ -20,7 +20,8 @@ var tilesPng []byte
 type Difficulty int
 
 const (
-	LevelEasy Difficulty = iota
+	LevelTutorial Difficulty = iota
+	LevelEasy
 	LevelNormal
 	LevelHard
 	LevelSugoi
@@ -28,6 +29,8 @@ const (
 
 func (d Difficulty) String() string {
 	switch d {
+	case LevelTutorial:
+		return "Tutorial"
 	case LevelEasy:
 		return "Easy"
 	case LevelNormal:
@@ -122,6 +125,11 @@ func NewFieldData(difficulty Difficulty) *FieldData {
 	var depth1 int
 
 	switch difficulty {
+	case LevelTutorial:
+		width = 2
+		height = 2
+		depth0 = 2
+		depth1 = 1
 	case LevelEasy:
 		width = 5
 		height = 5
