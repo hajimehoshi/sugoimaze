@@ -793,10 +793,10 @@ func (f *FieldData) passable(nextX, nextY int, prevY int, currentDepth0 int, cur
 	if !f.canStandOnTile(nextX, nextY-1, currentDepth0, currentDepth1) {
 		return false
 	}
-	if nextY > prevY && !f.canGoUp(nextX, nextY, currentDepth1) {
+	if nextY > prevY && !f.canGoUp(nextX, nextY, currentDepth0, currentDepth1) {
 		return false
 	}
-	if nextY < prevY && !f.canGoDown(nextX, nextY, currentDepth1) {
+	if nextY < prevY && !f.canGoDown(nextX, nextY, currentDepth0, currentDepth1) {
 		return false
 	}
 	return true
@@ -842,7 +842,7 @@ func (f *FieldData) canStandOnTile(x, y int, currentDepth0 int, currentDepth1 in
 	return false
 }
 
-func (f *FieldData) canGoUp(x, y int, currentDepth1 int) bool {
+func (f *FieldData) canGoUp(x, y int, currentDepth0 int, currentDepth1 int) bool {
 	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
 		return false
 	}
@@ -850,13 +850,13 @@ func (f *FieldData) canGoUp(x, y int, currentDepth1 int) bool {
 	if !t.ladders[currentDepth1] {
 		return true
 	}
-	if t.ladderColors[currentDepth1] > 0 && t.ladderColors[currentDepth1]-1 != currentDepth1 {
+	if t.ladderColors[currentDepth1] > 0 && t.ladderColors[currentDepth1]-1 != currentDepth0 {
 		return true
 	}
 	return !t.downward
 }
 
-func (f *FieldData) canGoDown(x, y int, currentDepth1 int) bool {
+func (f *FieldData) canGoDown(x, y int, currentDepth0 int, currentDepth1 int) bool {
 	if y < 0 || len(f.tiles) <= y || x < 0 || len(f.tiles[y]) <= x {
 		return false
 	}
@@ -864,7 +864,7 @@ func (f *FieldData) canGoDown(x, y int, currentDepth1 int) bool {
 	if !t.ladders[currentDepth1] {
 		return true
 	}
-	if t.ladderColors[currentDepth1] > 0 && t.ladderColors[currentDepth1]-1 != currentDepth1 {
+	if t.ladderColors[currentDepth1] > 0 && t.ladderColors[currentDepth1]-1 != currentDepth0 {
 		return true
 	}
 	return !t.upward
