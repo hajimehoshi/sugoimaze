@@ -402,7 +402,7 @@ func (f *FieldData) tryAddPathWithOneWay(rooms [][][][]room, x, y, z, w int, isG
 				}
 				if allWallOrOneWay {
 					// A branch must have a one-way passage.
-					// Just before the goal, the passage should be one-way so that branches are created more easily.
+					// Just before the end of the branch, the passage should be one-way so that branches are created more easily.
 					if isGoal(nextX, nextY, nextZ, nextW, rooms, count+1) {
 						oneWay = true
 						goalReached = true
