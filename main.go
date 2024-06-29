@@ -65,7 +65,8 @@ func (g *Game) PlayBGM(name string) error {
 	if err != nil {
 		return err
 	}
-	player, err = g.audioContext.NewPlayer(stream)
+	loop := audio.NewInfiniteLoop(stream, stream.Length())
+	player, err = g.audioContext.NewPlayer(loop)
 	if err != nil {
 		return err
 	}
