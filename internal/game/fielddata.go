@@ -266,9 +266,6 @@ func (f *FieldData) generateRooms() [][][][]room {
 		}
 		startCount := rooms[startW][startZ][startY][startX].progress
 		newRooms := f.tryAddPathWithOneWay(rooms, startX, startY, startZ, startW, func(x, y, z, w int, rooms [][][][]room, count int) bool {
-			if x == startX && y == startY && z == startZ && w == startW {
-				return false
-			}
 			if rooms[w][z][y][x].progress == 0 {
 				return false
 			}
