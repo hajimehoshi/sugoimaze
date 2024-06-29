@@ -16,3 +16,11 @@ Guide the Gopher to reach the rooftop of the Sugoi Building. If you can clear th
 ![2](./screenshot2.png)
 
 ![3](./screenshot3.png)
+
+## Licenses
+
+### `game.ogg`
+
+wasurenagusa (忘れな草)
+
+- [イワシロ音楽素材](https://iwashiro-sounds.work/)

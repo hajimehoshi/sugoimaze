@@ -12,10 +12,15 @@ import (
 )
 
 type TitleScene struct {
+	inited      bool
 	cursorIndex int
 }
 
 func (t *TitleScene) Update(game GameContext) error {
+	if !t.inited {
+		game.StopBGM()
+		t.inited = true
+	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyDown) || inpututil.IsKeyJustPressed(ebiten.KeyS) {
 		t.cursorIndex++
 	}

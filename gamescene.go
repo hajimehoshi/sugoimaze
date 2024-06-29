@@ -15,6 +15,7 @@ import (
 )
 
 type GameScene struct {
+	bgmStarted bool
 	difficulty game.Difficulty
 	field      *game.Field
 	fieldCh    chan *game.Field
@@ -27,6 +28,11 @@ func NewGameScene(difficulty game.Difficulty) *GameScene {
 }
 
 func (g *GameScene) Update(gameContext GameContext) error {
+	if !g.bgmStarted && g.field != nil {
+		gameContext.PlayBGM("game")
+		g.bgmStarted = true
+	}
+
 	if g.field == nil && g.fieldCh == nil {
 		g.fieldCh = make(chan *game.Field)
 		// Wait one second at least to show the message.

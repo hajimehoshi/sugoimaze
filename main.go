@@ -4,15 +4,24 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/audio/vorbis"
 
 	"github.com/hajimehoshi/sugoimaze/internal/game"
 )
 
+//go:embed game.ogg
+var gameOgg []byte
+
 type GameContext interface {
+	PlayBGM(name string) error
+	StopBGM()
 	GoToGame(difficulty game.Difficulty)
 	GoToTitle()
 }
@@ -23,12 +32,53 @@ type Scene interface {
 }
 
 type Game struct {
-	scene Scene
+	scene            Scene
+	audioContext     *audio.Context
+	bgmPlayers       map[string]*audio.Player
+	currentBGMPlayer *audio.Player
 }
 
 func NewGame() *Game {
 	return &Game{
-		scene: &TitleScene{},
+		scene:        &TitleScene{},
+		audioContext: audio.NewContext(48000),
+	}
+}
+
+func (g *Game) AudioContext() *audio.Context {
+	return g.audioContext
+}
+
+func (g *Game) PlayBGM(name string) error {
+	player, ok := g.bgmPlayers[name]
+	if ok {
+		player.Play()
+		return nil
+	}
+	if g.bgmPlayers == nil {
+		g.bgmPlayers = map[string]*audio.Player{}
+	}
+	if name != "game" {
+		return fmt.Errorf("sugoimaze: unknown BGM name: %s", name)
+	}
+	stream, err := vorbis.DecodeWithoutResampling(bytes.NewReader(gameOgg))
+	if err != nil {
+		return err
+	}
+	player, err = g.audioContext.NewPlayer(stream)
+	if err != nil {
+		return err
+	}
+	g.bgmPlayers[name] = player
+	g.currentBGMPlayer = player
+	player.Play()
+	return nil
+}
+
+func (g *Game) StopBGM() {
+	if g.currentBGMPlayer != nil {
+		g.currentBGMPlayer.Pause()
+		g.currentBGMPlayer.Rewind()
 	}
 }
 
